@@ -56,3 +56,11 @@ Run these commands in your Ubuntu 22.04 terminal to bind ROS 2 traffic to the Et
 `echo "export ROS_IP=$(hostname -I | awk '{print $1}')" >> ~/.bashrc` \
 `echo "export ROS_HOSTNAME=$(hostname -I | awk '{print $1}')" >> ~/.bashrc` \
 `source ~/.bashrc` \
+
+## License & Acknowledgements
+
+This project is licensed under the Apache License 2.0.
+
+Original Work: This repository is a derivative work based on the original [RCETI robotics project](https://github.com/bturner86239/RCETI/graphs/contributors). For a list of original authors, please visit the contributors page of the original repository at `https://github.com/bturner86239/RCETI/graphs/contributors`.
+
+Modifications: In 2026, CSE 2.3 modified the source code, hardware architecture, and simulation environment to implement an independent 4-servo perpendicular continuum drive.

@@ -1,4 +1,11 @@
 <?xml version="1.0" ?>
+<!-- MODIFICATION NOTICE
+This file is part of a derivative work based on the original RCETI project (https://github.com/bturner86239/RCETI).
+It was modified by CSE 2.3 on Feb 28, 2026 in accordance with Section 4(b) of the Apache License 2.0.
+
+Major Changes:
+Updated link group and joint group to handle four servos and new servo mount-->
+
 <!-- URDF of the Frame of the RCETI Intubation Robot-->
 <robot xmlns:xacro="http://ros.org/wiki/xacro" name="rceti_robot">
     
