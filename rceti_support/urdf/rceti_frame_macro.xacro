@@ -3,7 +3,8 @@
 <robot xmlns:xacro="http://ros.org/wiki/xacro" name="rceti_robot">
     
     <!-- This file wraps a standard URDF in a Xacro which is a URDF scripting language. 
-    This file is ultimately what will generate the interactive virtual model of the robot frame -->
+    This file is ultimately what will generate the interactive virtual model of the robot frame.
+    See "rceti_support/meshes/vusual/scaled_down_by_1000" for files to be modeled. -->
     
     <xacro:property name="meshes_directory" default=""/>
 
@@ -150,7 +151,7 @@
             <visual>
                 <origin xyz="-0.070 -0.042 0" rpy="0 0 0"/>
                 <geometry>
-                    <mesh filename="file://$(arg meshes_directory)/IF_Attachment_Piece_V8_Top_Meters.stl" scale="0.001 0.001 0.001"/>
+                    <mesh filename="file://$(arg meshes_directory)/IF_Attachment_Piece_V1.4_Top.STL" scale="0.001 0.001 0.001"/>
                 </geometry>
                 <material name="metal"/>
             </visual>
@@ -167,7 +168,7 @@
             <visual>
                 <origin xyz="-0.070 -0.042 0" rpy="0 0 0"/>
                 <geometry>
-                    <mesh filename="file://$(arg meshes_directory)/IF_Attachment_Piece_V8_Bottom_Meters.stl" scale="0.001 0.001 0.001"/>
+                    <mesh filename="file://$(arg meshes_directory)/IF_Attachment_V9_Piece_bottom.STL" scale="0.001 0.001 0.001"/>
                 </geometry>
                 <material name="metal"/>
             </visual>
@@ -190,7 +191,7 @@
             </visual>
         </link>
 
-        <link name="continuum_base_link_1">
+        <link name="continuum_base_link_top">
             <visual>
                 <geometry>
                     <cylinder length="0.001" radius="0.001"/>
@@ -198,8 +199,26 @@
                 <origin xyz="0 0 0" rpy="0 0 0"/>
             </visual>
         </link>
-        
-        <link name="continuum_base_link_2">
+
+        <link name="continuum_base_link_bottom">
+            <visual>
+                <geometry>
+                    <cylinder length="0.001" radius="0.001"/>
+                </geometry>
+                <origin xyz="0 0 0" rpy="0 0 0"/>
+            </visual>
+        </link>
+
+        <link name="continuum_base_link_left">
+            <visual>
+                <geometry>
+                    <cylinder length="0.001" radius="0.001"/>
+                </geometry>
+                <origin xyz="0 0 0" rpy="0 0 0"/>
+            </visual>
+        </link>
+
+        <link name="continuum_base_link_right">
             <visual>
                 <geometry>
                     <cylinder length="0.001" radius="0.001"/>
@@ -258,17 +277,33 @@
             <origin xyz="0 0.017 0"/>
         </joint>
 
-        <joint name="continuum_1" type="revolute">
+        <joint name="continuum_top" type="revolute">
             <parent link="pitch_servo_bottom_link"/>
-            <child link="continuum_base_link_1"/>
+            <child link="continuum_base_link_top"/>
             <origin xyz="0 0.017 0"/>
             <axis xyz="0 0 1"/> <!-- Specify the axis of rotation -->
             <limit effort="50.0" lower="-0.5" upper="0.5" velocity="1.0"/> <!-- Add limits -->
         </joint>
 
-        <joint name="continuum_2" type="revolute">
+        <joint name="continuum_bottom" type="revolute">
             <parent link="pitch_servo_bottom_link"/>
-            <child link="continuum_base_link_2"/>
+            <child link="continuum_base_link_bottom"/>
+            <origin xyz="0 0.017 0"/>
+            <axis xyz="0 0 1"/> <!-- Specify the axis of rotation -->
+            <limit effort="50.0" lower="-0.5" upper="0.5" velocity="1.0"/> <!-- Add limits -->
+        </joint>
+
+        <joint name="continuum_left" type="revolute">
+            <parent link="pitch_servo_bottom_link"/>
+            <child link="continuum_base_link_left"/>
+            <origin xyz="0 0.017 0"/>
+            <axis xyz="0 0 1"/> <!-- Specify the axis of rotation -->
+            <limit effort="50.0" lower="-0.5" upper="0.5" velocity="1.0"/> <!-- Add limits -->
+        </joint>
+
+        <joint name="continuum_right" type="revolute">
+            <parent link="pitch_servo_bottom_link"/>
+            <child link="continuum_base_link_right"/>
             <origin xyz="0 0.017 0"/>
             <axis xyz="0 0 1"/> <!-- Specify the axis of rotation -->
             <limit effort="50.0" lower="-0.5" upper="0.5" velocity="1.0"/> <!-- Add limits -->
