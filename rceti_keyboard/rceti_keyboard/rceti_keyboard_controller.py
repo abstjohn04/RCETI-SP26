@@ -1,3 +1,9 @@
+# MODIFICATION NOTICE
+# This file is part of a derivative work based on the original RCETI project (https://github.com/bturner86239/RCETI).
+# It was modified by CSE 2.3 on Feb 28, 2026 in accordance with Section 4(b) of the Apache License 2.0.
+
+# Major Changes:
+# Added two new continuum_motors. Refactored code with swtich case statement and added helper method _update_joint
 import sys
 import termios
 import tty
