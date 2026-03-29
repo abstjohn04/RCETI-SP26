@@ -4,93 +4,73 @@
  *  Created on: Apr 1, 2017
  *      Author: haitham
  */
-//
+/*
+MODIFICATION NOTICE
+This file is part of a derivative work based on the original RCETI project (https://github.com/bturner86239/RCETI).
+It was modified by CSE 2.3 in March, 2026 in accordance with Section 4(b) of the Apache License 2.0.
+
+Major Changes:
+Removed all keyboard inputs. Directly reads in input from keyboard through jointStateCallback method. Removed all methods and variables related to robot head.
+*/
 #ifndef rceti_continuum_INCLUDE_rceti_continuum_CONTINUUM_H_
 #define rceti_continuum_INCLUDE_rceti_continuum_CONTINUUM_H_
+
 #include "rclcpp/rclcpp.hpp"
-
 #include <math.h>
-#include "std_msgs/msg/string.hpp"
-
 #include <tf2/LinearMath/Transform.h>
 #include <tf2/LinearMath/Quaternion.h>
 #include <tf2_ros/transform_broadcaster.h>
 #include "geometry_msgs/msg/transform_stamped.hpp"
-
-
-#include <tf2_ros/transform_broadcaster.h>
 #include <stdlib.h>
 #include <fstream>
 #include <ament_index_cpp/get_package_share_directory.hpp>
 #include "visualization_msgs/msg/marker_array.hpp"
+#include "sensor_msgs/msg/joint_state.hpp"
 
-#include <termios.h>
+constexpr double PI = 3.1415926;
+constexpr int RESOLUTION = 100;
+constexpr int DELAY = 1;
+constexpr int NORMAL = 0;
 
-using namespace std;
-#define PI 3.1415926
-#define RESOLUTION 100
-#define INTERFACE 0
-#define delay 1
-#define HEAD 1
-#define TAIL 0
-#define FLIPPED 1
-#define NORMAL 0
-#define UPDATERATE 50
 class Continuum {
-private:
-	 tf2::Transform* endEffectorPose;
-	 tf2::Transform* basePose;
-	 tf2::Transform** segTFFrame; // array of array segTFFrame[segID][diskNo]
-	 std::shared_ptr<tf2_ros::TransformBroadcaster> segTFBroadcaster;
+	private:
+		std::vector<tf2::Transform> endEffectorPose;
+		std::vector<tf2::Transform> basePose;
+		std::vector<std::vector<tf2::Transform>> segTFFrame;
+		std::shared_ptr<tf2_ros::TransformBroadcaster> segTFBroadcaster;
 
-	 visualization_msgs::msg::MarkerArray* cableMarkers;
-	 visualization_msgs::msg::MarkerArray headMarkers;
-	 std::vector<rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr> cablePublisher;
+		std::vector<visualization_msgs::msg::MarkerArray> cableMarkers;
+		std::vector<rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr> cablePublisher;
 
-	 rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr headPublisher;
+		rclcpp::TimerBase::SharedPtr frame_timer;
 
-	 rclcpp::TimerBase::SharedPtr frame_timer;
+		std::vector<double> arrayOfKappa;
+		std::vector<double> arrayOfPhi;
+		std::vector<double> segmentLength;
+		std::vector<int> noOfDisks;
+		std::vector<int> segmentMode;
+		std::vector<double> segKappa;
+		std::vector<double> segPhi;
+		
+		std::ofstream robotURDFfile;
+		void createURDF(int segID, double length, int n_disks, double radius);
+		void initCableMarker(int segID);
+		tf2::Quaternion getDiskQuaternion(int segID, int diskID);
 
-	 bool hasHead;
-	 int headDisks;
-	 double headLength;
-	 double* arrayOfKappa;
-	 double* arrayOfPhi;
-	 double* segmentLength;
-	 int* noOfDisks;
-	 int* segmentMode;
-	 double* segKappa;
-	 double* segPhi;
-	 double headPhi;
-	 int headMode;
-	 double headKappa;
-	 struct termios initial_settings,
-	                new_settings;
-	 int rateOfUpdate;
-	 //-------------------------------------------------------------
-	 std_msgs::msg::String robotName;
-	 ofstream robotURDFfile;
-	 void createURDF(int segID, double length, int n_disks, double radius);
-	 void initCableMarker(int segID);
-	 tf2::Quaternion getDiskQuaternion(int segID, int diskID);
-	 tf2::Quaternion getHeadQuaternion(int diskID);
+		tf2::Vector3 getDiskPosition(int segID, int i);
+		void timerScanning();
+		rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr joint_state_sub_;
+		void jointStateCallback(const sensor_msgs::msg::JointState::SharedPtr msg);
 
-	 tf2::Vector3 getDiskPosition(int segID, int i);
-	 void timerScanning();
-public:
-	Continuum(std::shared_ptr<rclcpp::Node> node);
-	 int numberOfSegments;
+	public:
+		Continuum(std::shared_ptr<rclcpp::Node> node);
+		int numberOfSegments;
 
-	void addSegment(int segID, double length, int n_disks, double radius);
+		void addSegment(int segID, double length, int n_disks, double radius);
 
-	void setSegmentBasePose(int segID, tf2::Vector3 basePos, tf2::Quaternion baseRot);
-	void setSegmentShape(int segID, double kappa, double phi);
-	void update(void);
-	void addHead(double len, int disks, double rad);
-	void setHeadParameters(double headKap, double headPhi, int MODE);
-
-
-	virtual ~Continuum();
+		void setSegmentBasePose(int segID, tf2::Vector3 basePos, tf2::Quaternion baseRot);
+		void setSegmentShape(int segID, double kappa, double phi);
+		void update(void);
 };
 
 #endif /* rceti_continuum_INCLUDE_rceti_continuum_CONTINUUM_H_ */
