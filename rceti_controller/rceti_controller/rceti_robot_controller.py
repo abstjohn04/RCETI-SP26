@@ -1,3 +1,9 @@
+# MODIFICATION NOTICE
+# This file is part of a derivative work based on the original RCETI project (https://github.com/bturner86239/RCETI).
+# It was modified by CSE 2.3 in March, 2026 in accordance with Section 4(b) of the Apache License 2.0.
+
+# Major Changes:
+# Added support for two new continuum_motors.
 import math
 import rclpy
 from rclpy.node import Node
@@ -30,8 +36,10 @@ class RCETIRobotController(Node):
 
         # Initialize servo motors
         self.servo1 = kit.servo[0]       # tilts continuum base
-        self.servo2 = kit.servo[1]       # pulls continuum
-        self.servo3 = kit.servo[2]       # pulls continuum
+        self.servo2 = kit.servo[1]       # pulls continuum (N)
+        self.servo3 = kit.servo[2]       # pulls continuum (S)
+        self.servo4 = kit.servo[3]       # pulls continuum (W)
+        self.servo5 = kit.servo[4]       # pulls continuum (E)
 
         self.servo1.actuation_range = 200
         self.servo1.set_pulse_width_range(500, 2000)
@@ -39,10 +47,15 @@ class RCETIRobotController(Node):
         # May need to adjust 
         self.servo2.actuation_range = 200
         self.servo2.set_pulse_width_range(500, 2000)
-
         # May need to adjust 
         self.servo3.actuation_range = 200
         self.servo3.set_pulse_width_range(500, 2000)
+        # May need to adjust 
+        self.servo4.actuation_range = 200
+        self.servo4.set_pulse_width_range(500, 2000)
+        # May need to adjust 
+        self.servo5.actuation_range = 200
+        self.servo5.set_pulse_width_range(500, 2000)
 
         # Subscribe to the /joint_states topic
         self.joint_state_sub = self.create_subscription(
@@ -87,15 +100,18 @@ class RCETIRobotController(Node):
             x_index = msg.name.index('x_actuator_to_x_slider')
             z_index = msg.name.index('z_actuator_to_z_slider')
             pitch_index = msg.name.index('z_slider_to_pitch_servo')
-            continuum_index_1 = msg.name.index('continuum_1')
-            continuum_index_2 = msg.name.index('continuum_2')   
+            continuum_index_1 = msg.name.index('continuum_motor_1')
+            continuum_index_2 = msg.name.index('continuum_motor_2')
+            continuum_index_3 = msg.name.index('continuum_motor_3')
+            continuum_index_4 = msg.name.index('continuum_motor_4')
 
             new_x_position = msg.position[x_index]
             new_z_position = msg.position[z_index]
             pitch_angle_msg = msg.position[pitch_index]
             continuum_angle_1 = msg.position[continuum_index_1]
             continuum_angle_2 = msg.position[continuum_index_2]
-
+            continuum_angle_3 = msg.position[continuum_index_3]
+            continuum_angle_4 = msg.position[continuum_index_4]
 
             # Handle X-axis movement
             if self.x_position != new_x_position:
@@ -121,6 +137,12 @@ class RCETIRobotController(Node):
 
             # Handle pitch angle (if implemented in hardware)
             new_continuum_2_pitch_angle = int( ( (continuum_angle_2 + 0.475) / (1.205) ) * 120 )
+            
+            # Handle pitch angle (if implemented in hardware)
+            new_continuum_3_pitch_angle = int( ( (continuum_angle_3 + 0.475) / (1.205) ) * 120 )
+
+            # Handle pitch angle (if implemented in hardware)
+            new_continuum_4_pitch_angle = int( ( (continuum_angle_4 + 0.475) / (1.205) ) * 120 )
 
             if (self.servo1.angle != new_pitch_angle): 
                 self.get_logger().info(f"Adjusting pitch to {new_pitch_angle}")
@@ -134,6 +156,13 @@ class RCETIRobotController(Node):
                 self.get_logger().info(f"Adjusting continuum 2 to {new_continuum_2_pitch_angle}")
                 self.servo3.angle = new_continuum_2_pitch_angle
                 
+            if (self.servo4.angle != new_continuum_3_pitch_angle): 
+                self.get_logger().info(f"Adjusting continuum 3 to {new_continuum_3_pitch_angle}")
+                self.servo4.angle = new_continuum_3_pitch_angle
+
+            if (self.servo5.angle != new_continuum_4_pitch_angle): 
+                self.get_logger().info(f"Adjusting continuum 4 to {new_continuum_4_pitch_angle}")
+                self.servo5.angle = new_continuum_4_pitch_angle
 
         except ValueError as e:
             self.get_logger().error(f"Joint name not found in joint_states: {e}")
