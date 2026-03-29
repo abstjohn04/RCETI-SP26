@@ -1,3 +1,11 @@
+/*
+MODIFICATION NOTICE
+This file is part of a derivative work based on the original RCETI project (https://github.com/bturner86239/RCETI).
+It was modified by CSE 2.3 in March, 2026 in accordance with Section 4(b) of the Apache License 2.0.
+
+Major Changes:
+Removed all keyboard inputs and manual manipulation of RViz simulation through mouse drags.
+*/
 #include <rclcpp/rclcpp.hpp>
 #include <visualization_msgs/msg/marker.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
@@ -18,8 +26,6 @@
 
 using namespace visualization_msgs;
 using namespace std;
-struct termios initial_settings,
-               new_settings;
 
 std::shared_ptr<interactive_markers::InteractiveMarkerServer> server;
 tf2::Quaternion directionQauat;
@@ -195,26 +201,6 @@ void frameCallback(std::shared_ptr<rclcpp::Node> node)
     static geometry_msgs::msg::TransformStamped t;
 
     rclcpp::Time time = node->get_clock()->now();
-    int n = getchar();
-
-    if (n == '\033') { // if the first value is esc
-        getchar(); // skip the [
-        switch(getchar()) { // the real value
-            case 'A':
-                thetaPitch -= 90;
-                break;
-            case 'B':
-                thetaPitch += 90;
-                break;
-            case 'C':
-                thetaYaw -= 90;
-                break;
-            case 'D':
-                thetaYaw += 90;
-                break;
-        }
-        directionQauat.setRPY(0.0, (thetaPitch * PI) / 180, (thetaYaw * PI) / 180);
-    }
 
     t.header.stamp = time;
     t.header.frame_id = "continuum_base_link";
@@ -226,16 +212,6 @@ void frameCallback(std::shared_ptr<rclcpp::Node> node)
     t.transform.translation.y += translation_offset.y();
     t.transform.translation.z += translation_offset.z();
 
-    RCLCPP_INFO(node->get_logger(), "Broadcasting moving_frame transform");
-    RCLCPP_INFO(node->get_logger(), "frameCallback is being executed");
-    RCLCPP_INFO(node->get_logger(), "Transform: [%f, %f, %f] [%f, %f, %f, %f]",
-                t.transform.translation.x,
-                t.transform.translation.y,
-                t.transform.translation.z,
-                t.transform.rotation.x,
-                t.transform.rotation.y,
-                t.transform.rotation.z,
-                t.transform.rotation.w);
     br->sendTransform(t);
 }
 
@@ -305,18 +281,6 @@ int main(int argc, char** argv)
     rclcpp::Rate r(1);
     directionQauat = tf2::Quaternion(0, 0, 0, 1);
 
-    // Keyboard
-    tcgetattr(0, &initial_settings);
-
-    new_settings = initial_settings;
-    new_settings.c_lflag &= ~ICANON;
-    new_settings.c_lflag &= ~ECHO;
-    new_settings.c_lflag &= ~ISIG;
-    new_settings.c_cc[VMIN] = 0;
-    new_settings.c_cc[VTIME] = 0;
-
-    tcsetattr(0, TCSANOW, &new_settings);
-
     // Create a timer to update the published transforms
     auto frame_timer = node->create_wall_timer(
         std::chrono::milliseconds(50),
@@ -331,15 +295,14 @@ int main(int argc, char** argv)
     auto robotShapePublisher = node->create_publisher<visualization_msgs::msg::MarkerArray>("robot_shape", 1);
     server.reset(new interactive_markers::InteractiveMarkerServer("basic_controls", node, rclcpp::QoS(10).transient_local()));
     rclcpp::sleep_for(std::chrono::milliseconds(100));
-    tf2::Vector3 position;
-    position = tf2::Vector3(0, 0, 0);
+    tf2::Vector3 position = tf2::Vector3(0, 0, 0);
     make6DofMarker(false, visualization_msgs::msg::InteractiveMarkerControl::MOVE_ROTATE_3D, position, true);
     server->applyChanges();
 
     rclcpp::spin(node);
 
     server.reset();
-    tcsetattr(0, TCSANOW, &initial_settings);
+
     return 0;
 }
 
