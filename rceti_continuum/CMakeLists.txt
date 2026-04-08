@@ -26,7 +26,10 @@ include_directories(
 add_executable(core_node
   src/core_node.cpp
   src/Continuum.cpp
+  src/KinematicsEngine.cpp
+  src/UrdfGenerator.cpp
 )
+
 ament_target_dependencies(core_node
   rclcpp
   std_msgs
