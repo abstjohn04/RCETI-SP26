@@ -9,16 +9,102 @@ import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import JointState
 import time  # for delays/testing
-import lgpio
 
-from adafruit_servokit import ServoKit
-import adafruit_motor.servo
+# A try catch block to detect the raspberry pi. Enters mock mode for simulation testing if it is not detected.
+try:
+    import lgpio
+    from adafruit_servokit import ServoKit
+    import adafruit_motor.servo
+    HARDWARE_MODE = True
+    kit = ServoKit(channels=16)
+    print("Raspberry Pi Hardware detected. Running in HARDWARE mode.")
 
-kit = ServoKit(channels=16)
+except (ImportError, NotImplementedError):
+    print("WARNING: Raspberry Pi Hardware not detected. Running in MOCK SIMULATION mode.")
+    HARDWARE_MODE = False
 
+    class MockServo:
+        """A mock representation of an Adafruit servo motor for simulation testing."""
+        
+        def __init__(self):
+            """Initializes the mock servo with a default actuation range."""
+            self._angle = None
+            self.actuation_range = 180
+            
+        def set_pulse_width_range(self, min_p, max_p):
+            """Mocks the hardware method for setting the pulse width range.
+            
+            Args:
+                min_p (int): The minimum pulse width in microseconds.
+                max_p (int): The maximum pulse width in microseconds.
+            """
+            pass
 
-# Constants:
-# Maximum amount of request stepper motors will take at any given time
+        @property
+        def angle(self):
+            """Gets the current angle of the simulated servo.
+            
+            Returns:
+                float: The current angle.
+            """
+            return self._angle
+        
+        @angle.setter
+        def angle(self, val): 
+            """Sets the angle of the simulated servo.
+            
+            Args:
+                val (float): The desired angle to set.
+            """
+            self._angle = val
+
+    class MockServoKit:
+        """A mock representation of the Adafruit servo controller."""
+
+        def __init__(self, channels):
+            """Initializes the mock servo kit with a specified number of channels.
+            
+            Args:
+                channels (int): The total number of servo channels available on the board.
+            """
+            self.servo = [MockServo() for _ in range(channels)]
+
+    class MockLgpio:
+        """A mock representation of the lgpio library for simulating Raspberry Pi GPIO pins."""
+
+        def gpiochip_open(self, chip): 
+            """Mocks opening the GPIO chip for access.
+            
+            Args:
+                chip (int): The GPIO chip number to open.
+                
+            Returns:
+                int: A dummy handle ID for the opened chip.
+            """
+            return 1
+        
+        def gpio_claim_output(self, chip, pin): 
+            """Mocks claiming a specific GPIO pin for digital output.
+            
+            Args:
+                chip (int): The handle ID of the GPIO chip.
+                pin (int): The physical pin number to claim.
+            """
+            pass
+
+        def gpio_write(self, chip, pin, val):
+            """Mocks writing a digital high or low state to a GPIO pin.
+            
+            Args:
+                chip (int): The handle ID of the GPIO chip.
+                pin (int): The physical pin number to write to.
+                val (int): The value to write (1 for HIGH, 0 for LOW).
+            """
+            pass
+
+    kit = MockServoKit(channels=16)
+    lgpio = MockLgpio()
+
 TOPIC_SUBSCRIPTION_BUFFER = 5
 
 class RCETIRobotController(Node):
@@ -29,10 +115,9 @@ class RCETIRobotController(Node):
     """
 
     def __init__(self):
-        """Initializes the RCETIRobotController node, subscribes to the /joint_states topic, and sets up GPIO pins for stepper motors and servo motors
-        """
+        """Initializes the RCETIRobotController node, subscribes to the /joint_states topic, and sets up GPIO pins for stepper motors and servo motors."""
+        
         super().__init__('rceti_controller')
-
 
         # Initialize servo motors
         self.servo1 = kit.servo[0]       # tilts continuum base
@@ -43,7 +128,6 @@ class RCETIRobotController(Node):
 
         self.servo1.actuation_range = 200
         self.servo1.set_pulse_width_range(500, 2000)
-
         # May need to adjust 
         self.servo2.actuation_range = 200
         self.servo2.set_pulse_width_range(500, 2000)
@@ -129,20 +213,13 @@ class RCETIRobotController(Node):
                 self.move_stepper(steps, direction, self.Z_DIRECTION_PIN, self.Z_PULSE_PIN)
                 self.z_position = new_z_position
 
-            # Handle pitch angle (if implemented in hardware)
-            new_pitch_angle = int( ( (pitch_angle_msg + 0.475) / (1.205) ) * 120 )
-
-            # Handle pitch angle (if implemented in hardware)
-            new_continuum_1_pitch_angle = int( ( (continuum_angle_1 + 0.475) / (1.205) ) * 120 )
-
-            # Handle pitch angle (if implemented in hardware)
-            new_continuum_2_pitch_angle = int( ( (continuum_angle_2 + 0.475) / (1.205) ) * 120 )
+            # Handle pitch and continuum angles with safety clamps
+            new_pitch_angle = self.clamp_angle(((pitch_angle_msg + 0.475) / 1.205) * 120)
             
-            # Handle pitch angle (if implemented in hardware)
-            new_continuum_3_pitch_angle = int( ( (continuum_angle_3 + 0.475) / (1.205) ) * 120 )
-
-            # Handle pitch angle (if implemented in hardware)
-            new_continuum_4_pitch_angle = int( ( (continuum_angle_4 + 0.475) / (1.205) ) * 120 )
+            new_continuum_1_pitch_angle = self.clamp_angle(((continuum_angle_1 + 0.475) / 1.205) * 120)
+            new_continuum_2_pitch_angle = self.clamp_angle(((continuum_angle_2 + 0.475) / 1.205) * 120)
+            new_continuum_3_pitch_angle = self.clamp_angle(((continuum_angle_3 + 0.475) / 1.205) * 120)
+            new_continuum_4_pitch_angle = self.clamp_angle(((continuum_angle_4 + 0.475) / 1.205) * 120)
 
             if (self.servo1.angle != new_pitch_angle): 
                 self.get_logger().info(f"Adjusting pitch to {new_pitch_angle}")
@@ -177,14 +254,23 @@ class RCETIRobotController(Node):
             pulse_pin (int): the GPIO pin used to pulse the stepper motor
             delay (float, optional): the delay between steps, defaults to 0.001.
         """
-        self.get_logger().info(f"Moving stepper: steps={steps}, direction={direction}, direction_pin={direction_pin}, pulse_pin={pulse_pin}")
-        lgpio.gpio_write(self.chip, direction_pin, direction)
+        
+        if HARDWARE_MODE:
+            self.get_logger().info(f"Hardware pulsing: steps={steps}, dir={direction}")
+            lgpio.gpio_write(self.chip, direction_pin, direction)
 
-        for _ in range(steps):
-            lgpio.gpio_write(self.chip, pulse_pin, 1)
-            time.sleep(delay)
-            lgpio.gpio_write(self.chip, pulse_pin, 0)
-            time.sleep(delay)
+            for _ in range(steps):
+                lgpio.gpio_write(self.chip, pulse_pin, 1)
+                time.sleep(delay)
+                lgpio.gpio_write(self.chip, pulse_pin, 0)
+                time.sleep(delay)
+        else:
+            # Skip time.sleep() so it is reflected in simulation instanly
+            self.get_logger().info(f"[MOCK] Simulated moving stepper: steps={steps}, dir={direction}")
+
+    def clamp_angle(self, value):
+        """Clamps the calculated angle between 0 and 120 degrees."""
+        return max(0, min(120, int(value)))
 
 def main(args=None):
     """The main function initializes the ROS 2 node and starts the RCETIRobotController.
