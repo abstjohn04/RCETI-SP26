@@ -27,49 +27,103 @@ Removed all keyboard inputs. Directly reads in input from keyboard through joint
 #include "visualization_msgs/msg/marker_array.hpp"
 #include "sensor_msgs/msg/joint_state.hpp"
 
-constexpr double PI = 3.1415926;
+#include "rceti_continuum/KinematicsEngine.h"
+#include "rceti_continuum/UrdfGenerator.h"
+
 constexpr int RESOLUTION = 100;
 constexpr int DELAY = 1;
 constexpr int NORMAL = 0;
 
+/**
+ * @class Continuum
+ * @brief Main controller for the continuum robot simulation and visualization.
+ *
+ * This class orchestrates the physical simulation of the robot. It listens to incoming 
+ * motor commands via rceti_controller, passes them to the KinematicsEngine to calculate 
+ * the resulting curve, and broadcasts the updated 3D positions (TF2 frames) and visual 
+ * markers so the robot moves in RViz.
+ */
 class Continuum {
 	private:
-		std::vector<tf2::Transform> endEffectorPose;
-		std::vector<tf2::Transform> basePose;
-		std::vector<std::vector<tf2::Transform>> segTFFrame;
+		/** @brief Broadcasts the calculated positions of each rigid disk to the ROS 2 TF tree. */
 		std::shared_ptr<tf2_ros::TransformBroadcaster> segTFBroadcaster;
 
+		/** @brief Array of visual markers representing the the robot. */
 		std::vector<visualization_msgs::msg::MarkerArray> cableMarkers;
+
+		/** @brief Publishes the cable markers to RViz for visualization. */
 		std::vector<rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr> cablePublisher;
 
-		rclcpp::TimerBase::SharedPtr frame_timer;
-
-		std::vector<double> arrayOfKappa;
-		std::vector<double> arrayOfPhi;
-		std::vector<double> segmentLength;
-		std::vector<int> noOfDisks;
-		std::vector<int> segmentMode;
-		std::vector<double> segKappa;
-		std::vector<double> segPhi;
-		
-		std::ofstream robotURDFfile;
-		void createURDF(int segID, double length, int n_disks, double radius);
+		/**
+		 * @brief Initializes the shape, scale, and color of the visual markers for a segment.
+		 * @param segID The ID of the segment to initialize.
+		 */
 		void initCableMarker(int segID);
-		tf2::Quaternion getDiskQuaternion(int segID, int diskID);
-
-		tf2::Vector3 getDiskPosition(int segID, int i);
-		void timerScanning();
+		
+		/** @brief Subscribes to the /joint_states topic to listen for motor actuation commands. */
 		rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr joint_state_sub_;
+
+		/**
+		 * @brief Callback triggered when new motor commands are received. 
+		 * @details Translates X/Y motor bending inputs into mathematical curvature (kappa) 
+		 * and direction (phi), then updates the segment shape.
+		 * @param msg The incoming ROS 2 joint state message.
+		 */
 		void jointStateCallback(const sensor_msgs::msg::JointState::SharedPtr msg);
 
 	public:
-		Continuum(std::shared_ptr<rclcpp::Node> node);
+		/** @brief Pointer to the engine handling all constant curvature kinematics math. */
+		KinematicsEngine* math_engine_;
+
+		/** @brief Pointer to the engine responsible for generating the dynamic URDF file. */
+        UrdfGenerator* urdf_generator_;
+
+		/** @brief The total number of independent bending segments making up the robot. */
 		int numberOfSegments;
 
+		/**
+		 * @brief Constructor. Initializes ROS 2 interfaces, parameters, and internal engines.
+		 * @param node A shared pointer to the parent ROS 2 node.
+		 */
+		Continuum(std::shared_ptr<rclcpp::Node> node);
+
+		/**
+		 * @brief Destructor. Safely cleans up the dynamically allocated math and URDF engines.
+		 */
+		~Continuum();
+
+		/**
+		 * @brief Registers a new segment with both the Kinematics and URDF engines.
+		 * @param segID The unique identifier for this segment.
+		 * @param length The length of the segment.
+		 * @param n_disks The number of discrete rigid disks that make up the segment.
+		 * @param radius The radius of the segment/disks.
+		 */
 		void addSegment(int segID, double length, int n_disks, double radius);
 
-		void setSegmentBasePose(int segID, tf2::Vector3 basePos, tf2::Quaternion baseRot);
-		void setSegmentShape(int segID, double kappa, double phi);
+		/**
+		 * @brief Sets the 3D starting position and orientation for a specific segment.
+		 * 
+		 * @param segID The segment ID to update.
+		 * @param basePos A 3D vector representing the origin (x, y, z).
+		 * @param baseRot A Quaternion representing the orientation.
+		 */
+        void setSegmentBasePose(int segID, tf2::Vector3 basePos, tf2::Quaternion baseRot);
+
+		/**
+		 * @brief Updates the mathematical curve of a specific segment.
+		 * @param segID The segment ID to update.
+		 * @param kappa The curvature value (how tightly it is bending).
+		 * @param phi The direction angle of the bend (in radians).
+		 */
+        void setSegmentShape(int segID, double kappa, double phi);
+		
+		/**
+		 * @brief The main execution loop of the node.
+		 * @details Iterates through all segments, pulls the latest positional math from 
+		 * the KinematicsEngine, calculates the current TF2 frames for every disk, and 
+		 * broadcasts them alongside the updated visual markers.
+		 */
 		void update(void);
 };
 

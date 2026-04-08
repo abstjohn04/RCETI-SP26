@@ -11,6 +11,7 @@ It was modified by CSE 2.3 in March, 2026 in accordance with Section 4(b) of the
 
 Major Changes:
 Removed all keyboard inputs. Directly reads in input from keyboard through jointStateCallback method. Removed all methods and variables related to robot head.
+Moved math logic to KinematicsEngine.cpp and urdf management to UrdfGenerator.cpp.
 */
 
 #include "rceti_continuum/Continuum.h"
@@ -23,25 +24,15 @@ Continuum::Continuum(std::shared_ptr<rclcpp::Node> node)
     node->declare_parameter("number_of_sections", 2);
     node->get_parameter("number_of_sections", numberOfSegments);
 
-	segmentLength.resize(numberOfSegments);
-    segmentMode.resize(numberOfSegments);
-    noOfDisks.resize(numberOfSegments);
-    endEffectorPose.resize(numberOfSegments);
-    basePose.resize(numberOfSegments);
-    segKappa.resize(numberOfSegments);
-    segPhi.resize(numberOfSegments);
+    math_engine_ = new KinematicsEngine(numberOfSegments);
+    urdf_generator_ = new UrdfGenerator();
 
-	segTFBroadcaster = std::make_shared<tf2_ros::TransformBroadcaster>(node);
-	segTFFrame.resize(numberOfSegments, std::vector<tf2::Transform>(RESOLUTION));
-
-	arrayOfKappa.resize((numberOfSegments + 1) * DELAY);
-    arrayOfPhi.resize((numberOfSegments + 1) * DELAY);
+    segTFBroadcaster = std::make_shared<tf2_ros::TransformBroadcaster>(node);
 
     cableMarkers.resize(numberOfSegments + 1);
     cablePublisher.resize(numberOfSegments + 1);
 
 	joint_state_sub_ = node->create_subscription<sensor_msgs::msg::JointState>("/joint_states", 10, std::bind(&Continuum::jointStateCallback, this, std::placeholders::_1));
-    frame_timer = node->create_wall_timer(std::chrono::milliseconds(100), std::bind(&Continuum::timerScanning, this));
 
     for (int segmentNum = 0; segmentNum <= numberOfSegments; segmentNum++)
     {
@@ -51,277 +42,98 @@ Continuum::Continuum(std::shared_ptr<rclcpp::Node> node)
     }
 }
 
-void Continuum::jointStateCallback(const sensor_msgs::msg::JointState::SharedPtr msg) {
-    try {
-        double bend_y = 0.0;
-        double bend_x = 0.0;
-        bool found_y = false;
-        bool found_x = false;
-
-        for (size_t i = 0; i < msg->name.size(); ++i) {
-            if (msg->name[i] == "continuum_motor_1") {
-                bend_y = msg->position[i];
-                found_y = true;
-            } else if (msg->name[i] == "continuum_motor_3") {
-                bend_x = msg->position[i];
-                found_x = true;
-            }
-        }
-
-        if (found_y && found_x) {
-            double kappa = sqrt(pow(bend_x, 2) + pow(bend_y, 2));
-            if (kappa == 0.0) kappa = 0.0000001;
-            double phi = atan2(bend_y, bend_x);
-            setSegmentShape(0, kappa, phi);
-        }
-    } catch (const std::exception& e) {
-        RCLCPP_ERROR(rclcpp::get_logger("rceti_continuum"), "Error in JointState callback: %s", e.what());
-    }
+Continuum::~Continuum() {
+    delete math_engine_;
+    delete urdf_generator_;
 }
 
-void Continuum::timerScanning()
-{
-    // ...existing code...
+void Continuum::addSegment(int segID, double length, int n_disks, double radius) {
+    urdf_generator_->createURDF(segID, length, n_disks, radius, numberOfSegments);
+    math_engine_->addSegment(segID, length, n_disks, radius);
+    initCableMarker(segID);
 }
 
-void Continuum::addSegment(int segID, double segLength, int n_disks, double radius){	// TODO Auto-generated constructor stub
-	createURDF(segID, segLength, n_disks, radius);
-	segTFFrame[segID].resize(n_disks);
-
-	segmentLength[segID] = segLength;
-	noOfDisks[segID] = n_disks;
-	initCableMarker(segID);
-
-	if(segID >0)
-	{
-		basePose[segID].setOrigin(endEffectorPose[segID-1].getOrigin());
-		basePose[segID].setRotation(endEffectorPose[segID-1].getRotation());
-	}
-	else
-	{
-		basePose[segID].setOrigin(tf2::Vector3(0,0,0));
-		basePose[segID].setRotation(tf2::Quaternion(0,0,0,1));
-		endEffectorPose[segID].setOrigin(tf2::Vector3(0,0,segmentLength[segID]));
-		endEffectorPose[segID].setRotation(tf2::Quaternion(0,0,0,1));
-
-	}
-	segKappa[segID] = 0.00001;
-	segPhi[segID] = 0.0;
+void Continuum::setSegmentBasePose(int segID, tf2::Vector3 basePos, tf2::Quaternion baseRot) {
+    math_engine_->setSegmentBasePose(segID, basePos, baseRot);
 }
 
-void Continuum::setSegmentBasePose(int segID, tf2::Vector3 basePos, tf2::Quaternion baseRot)
-{
-	basePose[segID].setOrigin(basePos);
-	basePose[segID].setRotation(baseRot);
-
-	for (int s=segID+1;s<numberOfSegments;s++)
-	{
-		RCLCPP_INFO(rclcpp::get_logger("rceti_continuum"),
-		"Base Pose Before Setting: x=%f, y=%f, z=%f | Quaternion: x=%f, y=%f, z=%f, w=%f",
-		basePos.x(), basePos.y(), basePos.z(),
-		baseRot.x(), baseRot.y(), baseRot.z(), baseRot.w());
-
-		basePose[s].setOrigin(basePose[s-1].getOrigin() + (tf2::Matrix3x3(basePose[s-1].getRotation())*getDiskPosition(s-1,(noOfDisks[s-1]-1))));
-		basePose[s].setRotation(basePose[s-1].getRotation()*getDiskQuaternion(s-1,(noOfDisks[s-1]-1)));
-	}
-}
-
-void Continuum::setSegmentShape(int segID, double kappa, double phi){
-	if(kappa == 0) kappa = 0.0000001;
-	segKappa[segID] = kappa;
-	segPhi[segID] = phi;
-	tf2::Matrix3x3 Rot;
-	tf2::Quaternion qRot;
-	Rot.setValue(pow(cos(phi),2) * (cos(kappa*segmentLength[segID]) - 1) + 1, sin(phi)*cos(phi)*( cos(kappa*segmentLength[segID]) - 1), -cos(phi)*sin(kappa*segmentLength[segID]),
-							sin(phi)*cos(phi)*( cos(kappa*segmentLength[segID]) - 1), pow(cos(phi),2) * ( 1 - cos(kappa*segmentLength[segID]) ) + cos( kappa * segmentLength[segID] ),  -sin(phi)*sin(kappa*segmentLength[segID]),
-							cos(phi)*sin(kappa*segmentLength[segID]),  sin(phi)*sin(kappa*segmentLength[segID]), cos(kappa*segmentLength[segID]));
-	Rot.getRotation(qRot);
-	endEffectorPose[segID].setRotation(basePose[segID].getRotation() * qRot);
-
-	tf2::Vector3 eePosition = basePose[segID].getOrigin() + ( tf2::Matrix3x3(basePose[segID].getRotation())*tf2::Vector3(cos(phi)*( cos(kappa*segmentLength[segID]) - 1)/kappa, sin(phi)*( cos(kappa*segmentLength[segID]) - 1)/kappa, sin(kappa*segmentLength[segID])/kappa));
-	endEffectorPose[segID].setOrigin(eePosition);
-
-	for (int s = segID+1; s < numberOfSegments; s++)
-	{
-		basePose[s].setOrigin(endEffectorPose[s-1].getOrigin());
-		basePose[s].setRotation(endEffectorPose[s-1].getRotation());
-		if(s==1)
-		{
-			endEffectorPose[s].setOrigin(basePose[s].getOrigin() + tf2::Matrix3x3(basePose[s].getRotation())*getDiskPosition(s,(noOfDisks[s]-1)));
-			endEffectorPose[s].setRotation(basePose[s].getRotation()*getDiskQuaternion(s,(noOfDisks[s]-1)));
-		}
-	}
-}
-
-tf2::Quaternion Continuum::getDiskQuaternion(int segID, int diskID){
-	tf2::Matrix3x3 Rot;
-	tf2::Quaternion qRot;
-	Rot.setValue(pow(cos(segPhi[segID]),2) * (cos(segKappa[segID]*((diskID/((double)noOfDisks[segID]-1))*segmentLength[segID])) - 1) + 1, sin(segPhi[segID])*cos(segPhi[segID])*( cos(segKappa[segID]*((diskID/((double)noOfDisks[segID]-1))*segmentLength[segID])) - 1), -cos(segPhi[segID])*sin(segKappa[segID]*((diskID/((double)noOfDisks[segID]-1))*segmentLength[segID])),
-							sin(segPhi[segID])*cos(segPhi[segID])*( cos(segKappa[segID]*((diskID/((double)noOfDisks[segID]-1))*segmentLength[segID])) - 1), pow(cos(segPhi[segID]),2) * ( 1 - cos(segKappa[segID]*((diskID/((double)noOfDisks[segID]-1))*segmentLength[segID])) ) + cos( segKappa[segID] * ((diskID/((double)noOfDisks[segID]-1))*segmentLength[segID])),  -sin(segPhi[segID])*sin(segKappa[segID]*((diskID/((double)noOfDisks[segID]-1))*segmentLength[segID])),
-							cos(segPhi[segID])*sin(segKappa[segID]*((diskID/((double)noOfDisks[segID]-1))*segmentLength[segID])),  sin(segPhi[segID])*sin(segKappa[segID]*((diskID/((double)noOfDisks[segID]-1))*segmentLength[segID])), cos(segKappa[segID]*((diskID/((double)noOfDisks[segID]-1))*segmentLength[segID])));
-	Rot.getRotation(qRot);
-	return qRot;
-}
-
-tf2::Vector3 Continuum::getDiskPosition(int segID, int i)
-{
-	tf2::Vector3 eeP;
-	eeP[0] = cos(segPhi[segID])*(cos(segKappa[segID]*((i/((double)noOfDisks[segID]-1))*segmentLength[segID])) - 1)/segKappa[segID];
-	eeP[1] = sin(segPhi[segID])*( cos(segKappa[segID]*((i/((double)noOfDisks[segID]-1))*segmentLength[segID])) - 1)/segKappa[segID];
-	eeP[2] = (sin(segKappa[segID]*((i/((double)noOfDisks[segID]-1))*segmentLength[segID]))/segKappa[segID]);
-	return eeP;
+void Continuum::setSegmentShape(int segID, double kappa, double phi) {
+    math_engine_->setSegmentShape(segID, kappa, phi);
 }
 
 void Continuum::update(void) 
 {
-	char childFrameName[30];
-	rclcpp::Rate rate(15);
-	tf2::Vector3 heeP;
+    char childFrameName[30];
+    rclcpp::Rate rate(15);
 
-	for (int segID = 0;segID<numberOfSegments;segID++)
-	{
-		tf2::Vector3 eeP;
-		tf2::Vector3 eePc;
-
-		for(int i=0;i<noOfDisks[segID]&&rclcpp::ok();i++)
-		{
-			eeP[0] = cos(segPhi[segID])*(cos(segKappa[segID]*((i/((double)noOfDisks[segID]-1))*segmentLength[segID])) - 1)/segKappa[segID];
-			eeP[1] = sin(segPhi[segID])*( cos(segKappa[segID]*((i/((double)noOfDisks[segID]-1))*segmentLength[segID])) - 1)/segKappa[segID];
-			eeP[2] = (sin(segKappa[segID]*((i/((double)noOfDisks[segID]-1))*segmentLength[segID]))/segKappa[segID]);
-			eeP =  tf2::Matrix3x3(basePose[segID].getRotation())*eeP;
-
-			for (int segID = 0; segID < numberOfSegments; segID++) {
-				if (basePose[segID].getOrigin().length() == 0) {
-					basePose[segID].setOrigin(tf2::Vector3(0, 0, 0));
-					basePose[segID].setRotation(tf2::Quaternion(0, 0, 0, 1));
-				}
-			}
-						
-			segTFFrame[segID][i].setOrigin(tf2::Vector3(basePose[segID].getOrigin().x() + eeP.getX(), basePose[segID].getOrigin().y() + eeP.getY(), basePose[segID].getOrigin().z() + eeP.getZ()) );
-			segTFFrame[segID][i].setRotation(basePose[segID].getRotation() * getDiskQuaternion(segID,i));
-
-			sprintf(childFrameName, "S%dL%d", segID,i);
-			geometry_msgs::msg::TransformStamped transformStamped;
-			transformStamped.header.stamp = rclcpp::Clock().now();
-			transformStamped.header.frame_id = "continuum_base_link";
-			transformStamped.child_frame_id = childFrameName;
-			transformStamped.transform.translation.x = segTFFrame[segID][i].getOrigin().x();
-			transformStamped.transform.translation.y = segTFFrame[segID][i].getOrigin().y();
-			transformStamped.transform.translation.z = segTFFrame[segID][i].getOrigin().z();
-
-			tf2::Quaternion q = segTFFrame[segID][i].getRotation();
-			transformStamped.transform.rotation.x = q.x();
-			transformStamped.transform.rotation.y = q.y();
-			transformStamped.transform.rotation.z = q.z();
-			transformStamped.transform.rotation.w = q.w();
-
-			segTFBroadcaster->sendTransform(transformStamped);
-		}
-
-		if (segID >= numberOfSegments || noOfDisks[segID] <= 0) continue; // Prevent invalid access
-
-		for (int i = 0; i < RESOLUTION && rclcpp::ok(); i++)
-		{
-			if (segTFFrame[segID].empty()) continue;
-
-			eePc[0] = cos(segPhi[segID])*(cos(segKappa[segID]*((i/((double)RESOLUTION-1))*segmentLength[segID])) - 1)/segKappa[segID];
-			eePc[1] =  sin(segPhi[segID])*(cos(segKappa[segID]*((i/((double)RESOLUTION-1))*segmentLength[segID])) - 1)/segKappa[segID];
-			eePc[2] = (sin(segKappa[segID]*((i/((double)RESOLUTION-1))*segmentLength[segID]))/segKappa[segID]);
-
-			eePc =  tf2::Matrix3x3(basePose[segID].getRotation())*eePc;
-			cableMarkers[segID].markers[i].pose.position.x = basePose[segID].getOrigin().x()+ eePc[0];
-			cableMarkers[segID].markers[i].pose.position.y = basePose[segID].getOrigin().y()+ eePc[1];
-			cableMarkers[segID].markers[i].pose.position.z = basePose[segID].getOrigin().z()+ eePc[2];
-			// Slerp for spherical interpolation
-			cableMarkers[segID].markers[i].pose.orientation.x = 0;//slerpQuaternionCable.x();
-			cableMarkers[segID].markers[i].pose.orientation.y = 0;//slerpQuaternionCable.y();
-			cableMarkers[segID].markers[i].pose.orientation.z = 0;//slerpQuaternionCable.z();
-			cableMarkers[segID].markers[i].pose.orientation.w = 1;//slerpQuaternionCable.w();
-		}
-		cablePublisher[segID]->publish(cableMarkers[segID]);
-	}
-	rate.sleep();
-}
-
-void Continuum::createURDF(int segID, double segLength, int n_disks, double radius)
-{
-    // Define a scaling factor
-    double scale_factor = .1; // Example: Scale down by 50%
-
-    // Get the path to the URDF file
-    std::string path = ament_index_cpp::get_package_share_directory("rceti_continuum");
-    path = path + "/urdf/continuum_macro.xacro";
-	
-
-    if (segID == 0)
-    { // If the first time to create the robot, delete the previous file
-        remove(path.c_str());
-
-        robotURDFfile.open(path.c_str(), std::fstream::app);
-        robotURDFfile << "<?xml version=\"1.1\"?>" << std::endl;
-        robotURDFfile << "<robot xmlns:xacro=\"http://ros.org/wiki/xacro\" name=\"rceti_continuum\">" << std::endl;
-		robotURDFfile << "<xacro:macro name=\"rceti_continuum\">" << std::endl;
-        robotURDFfile << "<link name=\"continuum_base_link\"/>" << std::endl;
-		robotURDFfile << "<origin xyz=\"1.0 2.0 0.5\" rpy=\"0 0 0\"/>" << std::endl; // Set the position and orientation
-        robotURDFfile << "<material name=\"white\">" << std::endl;
-        robotURDFfile << "<color rgba=\"0 1 0 1\"/>" << std::endl;
-        robotURDFfile << "</material>" << std::endl;
-    }
-    else
+    for (int segID = 0; segID < numberOfSegments; segID++)
     {
-        robotURDFfile.open(path.c_str(), std::fstream::app);
-    }
+        tf2::Vector3 eePc;
 
-    robotURDFfile << std::endl;
-    for (int disk = 0; disk < n_disks; disk++)
-    {
-        // Scale the position of the disk
-        double scaled_position = scale_factor * (disk / (n_disks - 1)) * segLength;
+        // Pull the clean data from our math engine!
+        int n_disks = math_engine_->getNoOfDisks(segID);
+        double phi = math_engine_->getPhi(segID);
+        double kappa = math_engine_->getKappa(segID);
+        double length = math_engine_->getSegmentLength(segID);
+        tf2::Transform base = math_engine_->getBasePose(segID);
 
-        robotURDFfile << "<link name=\"S" << segID << "L" << disk << "\">" << std::endl;
-        robotURDFfile << "<visual>" << std::endl;
-        robotURDFfile << "<geometry>" << std::endl;
-
-        if (segID == 0 && disk == 0)
+        for(int i = 0; i < n_disks && rclcpp::ok(); i++)
         {
-            // Scale the size of the base box
-            robotURDFfile << "<box size=\"" << scale_factor * 1 << " " << scale_factor * 1 << " " << scale_factor * 0.05 << "\"/>" << std::endl;
+            // Re-use the engine's built-in getDiskPosition
+            tf2::Vector3 eeP = math_engine_->getDiskPosition(segID, i);
+            eeP = tf2::Matrix3x3(base.getRotation()) * eeP;
 
-        }
-        else
-        {
-            // Scale the size of the cylinder
-            robotURDFfile << "<cylinder length=\"" << scale_factor * 0.1 << "\" radius=\"" << scale_factor * radius << "\"/>" << std::endl;
+            // Fix zeroed base poses safely
+            for (int s = 0; s < numberOfSegments; s++) {
+                if (math_engine_->getBasePose(s).getOrigin().length() == 0) {
+                    math_engine_->setSegmentBasePose(s, tf2::Vector3(0, 0, 0), tf2::Quaternion(0, 0, 0, 1));
+                }
+            }
+                        
+            // Calculate and broadcast the current frame directly
+            tf2::Transform currentFrame;
+            currentFrame.setOrigin(tf2::Vector3(base.getOrigin().x() + eeP.getX(), base.getOrigin().y() + eeP.getY(), base.getOrigin().z() + eeP.getZ()));
+            currentFrame.setRotation(base.getRotation() * math_engine_->getDiskQuaternion(segID, i));
+
+            sprintf(childFrameName, "S%dL%d", segID, i);
+            geometry_msgs::msg::TransformStamped transformStamped;
+            transformStamped.header.stamp = rclcpp::Clock().now();
+            transformStamped.header.frame_id = "continuum_base_link";
+            transformStamped.child_frame_id = childFrameName;
+            transformStamped.transform.translation.x = currentFrame.getOrigin().x();
+            transformStamped.transform.translation.y = currentFrame.getOrigin().y();
+            transformStamped.transform.translation.z = currentFrame.getOrigin().z();
+
+            tf2::Quaternion q = currentFrame.getRotation();
+            transformStamped.transform.rotation.x = q.x();
+            transformStamped.transform.rotation.y = q.y();
+            transformStamped.transform.rotation.z = q.z();
+            transformStamped.transform.rotation.w = q.w();
+
+            segTFBroadcaster->sendTransform(transformStamped);
         }
 
-        // Scale the position of the origin
-        robotURDFfile << "<origin rpy=\"0 0 0\" xyz=\"0 0 " << scaled_position << "\"/>" << std::endl;
-        robotURDFfile << "</geometry>" << std::endl;
+        if (segID >= numberOfSegments || n_disks <= 0) continue; 
 
-        if (segID == 0 && disk == 0)
+        for (int i = 0; i < RESOLUTION && rclcpp::ok(); i++)
         {
-            robotURDFfile << "<material name=\"white\"/>" << std::endl;
+            eePc[0] = cos(phi)*(cos(kappa*((i/((double)RESOLUTION-1.0))*length)) - 1)/kappa;
+            eePc[1] = sin(phi)*( cos(kappa*((i/((double)RESOLUTION-1.0))*length)) - 1)/kappa;
+            eePc[2] = (sin(kappa*((i/((double)RESOLUTION-1.0))*length))/kappa);
+
+            eePc = tf2::Matrix3x3(base.getRotation()) * eePc;
+            cableMarkers[segID].markers[i].pose.position.x = base.getOrigin().x() + eePc[0];
+            cableMarkers[segID].markers[i].pose.position.y = base.getOrigin().y() + eePc[1];
+            cableMarkers[segID].markers[i].pose.position.z = base.getOrigin().z() + eePc[2];
+            
+            cableMarkers[segID].markers[i].pose.orientation.x = 0;
+            cableMarkers[segID].markers[i].pose.orientation.y = 0;
+            cableMarkers[segID].markers[i].pose.orientation.z = 0;
+            cableMarkers[segID].markers[i].pose.orientation.w = 1;
         }
-
-        robotURDFfile << "</visual>" << std::endl;
-        robotURDFfile << "</link>" << std::endl;
-        robotURDFfile << std::endl;
-
-        // Scale the joint
-        robotURDFfile << "<joint name=\"S" << segID << "J" << disk << "\" type=\"floating\">" << std::endl;
-        robotURDFfile << "<parent link=\"continuum_base_link\"/>" << std::endl;
-        robotURDFfile << "<child link=\"S" << segID << "L" << disk << "\"/>" << std::endl;
-        robotURDFfile << "</joint>" << std::endl;
-        robotURDFfile << std::endl;
+        cablePublisher[segID]->publish(cableMarkers[segID]);
     }
-
-    if (segID == (numberOfSegments - 1))
-    {
-		robotURDFfile << "</xacro:macro>" << std::endl;
-        robotURDFfile << "</robot>" << std::endl; // Add closing tag
-    }
-
-    robotURDFfile.close();
+    rate.sleep();
 }
 
 void Continuum::initCableMarker(int segID){
@@ -357,4 +169,32 @@ void Continuum::initCableMarker(int segID){
 	    cableMarkers[segID].markers[r].color.a = 1.0;
 	    cableMarkers[segID].markers[r].lifetime = rclcpp::Duration(0,0);
 	  }
+}
+
+void Continuum::jointStateCallback(const sensor_msgs::msg::JointState::SharedPtr msg) {
+    try {
+        double bend_y = 0.0;
+        double bend_x = 0.0;
+        bool found_y = false;
+        bool found_x = false;
+
+        for (size_t i = 0; i < msg->name.size(); ++i) {
+            if (msg->name[i] == "continuum_motor_1") {
+                bend_y = msg->position[i];
+                found_y = true;
+            } else if (msg->name[i] == "continuum_motor_3") {
+                bend_x = msg->position[i];
+                found_x = true;
+            }
+        }
+
+        if (found_y && found_x) {
+            double kappa = sqrt(pow(bend_x, 2) + pow(bend_y, 2));
+            if (kappa == 0.0) kappa = 0.0000001;
+            double phi = atan2(bend_y, bend_x);
+            setSegmentShape(0, kappa, phi);
+        }
+    } catch (const std::exception& e) {
+        RCLCPP_ERROR(rclcpp::get_logger("rceti_continuum"), "Error in JointState callback: %s", e.what());
+    }
 }
