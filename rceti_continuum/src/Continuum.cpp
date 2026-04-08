@@ -66,11 +66,12 @@ void Continuum::update(void)
     char childFrameName[30];
     rclcpp::Rate rate(15);
 
+    // Updates the location of each segment of the tube
     for (int segID = 0; segID < numberOfSegments; segID++)
     {
         tf2::Vector3 eePc;
 
-        // Pull the clean data from our math engine!
+        // Accesses necessary variables from math engine
         int n_disks = math_engine_->getNoOfDisks(segID);
         double phi = math_engine_->getPhi(segID);
         double kappa = math_engine_->getKappa(segID);
