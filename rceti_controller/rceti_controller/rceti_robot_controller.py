@@ -128,18 +128,23 @@ class RCETIRobotController(Node):
 
         self.servo1.actuation_range = 200
         self.servo1.set_pulse_width_range(500, 2000)
+
+        # CONTINUUM SERVO BOUND CONSTANTS
+        self.continuum_servo_range = 20
+        self.continuum_servo_middle = 90
+
         # May need to adjust 
-        self.servo2.actuation_range = 200
-        self.servo2.set_pulse_width_range(500, 2000)
+        self.servo2.actuation_range = 180
+        self.servo2.set_pulse_width_range(500, 2500)
         # May need to adjust 
-        self.servo3.actuation_range = 200
-        self.servo3.set_pulse_width_range(500, 2000)
+        self.servo3.actuation_range = 180
+        self.servo3.set_pulse_width_range(500, 2500)
         # May need to adjust 
-        self.servo4.actuation_range = 200
-        self.servo4.set_pulse_width_range(500, 2000)
+        self.servo4.actuation_range = 180
+        self.servo4.set_pulse_width_range(500, 2500)
         # May need to adjust 
-        self.servo5.actuation_range = 200
-        self.servo5.set_pulse_width_range(500, 2000)
+        self.servo5.actuation_range = 180
+        self.servo5.set_pulse_width_range(500, 2500)
 
         # Subscribe to the /joint_states topic
         self.joint_state_sub = self.create_subscription(
@@ -216,30 +221,35 @@ class RCETIRobotController(Node):
             # Handle pitch and continuum angles with safety clamps
             new_pitch_angle = self.clamp_angle(((pitch_angle_msg + 0.475) / 1.205) * 120)
             
-            new_continuum_1_pitch_angle = self.clamp_angle(((continuum_angle_1 + 0.475) / 1.205) * 120)
-            new_continuum_2_pitch_angle = self.clamp_angle(((continuum_angle_2 + 0.475) / 1.205) * 120)
-            new_continuum_3_pitch_angle = self.clamp_angle(((continuum_angle_3 + 0.475) / 1.205) * 120)
-            new_continuum_4_pitch_angle = self.clamp_angle(((continuum_angle_4 + 0.475) / 1.205) * 120)
+            # new_continuum_1_pitch_angle = self.clamp_angle(((continuum_angle_1 + 0.475) / 1.205) * 120)
+            # new_continuum_2_pitch_angle = self.clamp_angle(((continuum_angle_2 + 0.475) / 1.205) * 120)
+            # new_continuum_3_pitch_angle = self.clamp_angle(((continuum_angle_3 + 0.475) / 1.205) * 120)
+            # new_continuum_4_pitch_angle = self.clamp_angle(((continuum_angle_4 + 0.475) / 1.205) * 120)
+
+            servo1_angle = self.clamp_continuum_angle((continuum_angle_1 * 180) + 90)
+            servo2_angle = self.clamp_continuum_angle((continuum_angle_2 * 180) + 90)
+            servo3_angle = self.clamp_continuum_angle((continuum_angle_3 * 180) + 90)
+            servo4_angle = self.clamp_continuum_angle((continuum_angle_4 * 180) + 90)
 
             if (self.servo1.angle != new_pitch_angle): 
                 self.get_logger().info(f"Adjusting pitch to {new_pitch_angle}")
                 self.servo1.angle = new_pitch_angle
 
-            if (self.servo2.angle != new_continuum_1_pitch_angle): 
-                self.get_logger().info(f"Adjusting continuum 1 to {new_continuum_1_pitch_angle}")
-                self.servo2.angle = new_continuum_1_pitch_angle
+            if (self.servo2.angle != servo1_angle): 
+                self.get_logger().info(f"Adjusting continuum 1 to {servo1_angle}")
+                self.servo2.angle = servo1_angle
 
-            if (self.servo3.angle != new_continuum_2_pitch_angle): 
-                self.get_logger().info(f"Adjusting continuum 2 to {new_continuum_2_pitch_angle}")
-                self.servo3.angle = new_continuum_2_pitch_angle
+            if (self.servo3.angle != servo2_angle): 
+                self.get_logger().info(f"Adjusting continuum 2 to {servo2_angle}")
+                self.servo3.angle = servo2_angle
                 
-            if (self.servo4.angle != new_continuum_3_pitch_angle): 
-                self.get_logger().info(f"Adjusting continuum 3 to {new_continuum_3_pitch_angle}")
-                self.servo4.angle = new_continuum_3_pitch_angle
+            if (self.servo4.angle != servo3_angle): 
+                self.get_logger().info(f"Adjusting continuum 3 to {servo3_angle}")
+                self.servo4.angle = servo3_angle
 
-            if (self.servo5.angle != new_continuum_4_pitch_angle): 
-                self.get_logger().info(f"Adjusting continuum 4 to {new_continuum_4_pitch_angle}")
-                self.servo5.angle = new_continuum_4_pitch_angle
+            if (self.servo5.angle != servo4_angle): 
+                self.get_logger().info(f"Adjusting continuum 4 to {servo4_angle}")
+                self.servo5.angle = servo4_angle
 
         except ValueError as e:
             self.get_logger().error(f"Joint name not found in joint_states: {e}")
@@ -271,6 +281,16 @@ class RCETIRobotController(Node):
     def clamp_angle(self, value):
         """Clamps the calculated angle between 0 and 120 degrees."""
         return max(0, min(120, int(value)))
+
+    def clamp_continuum_angle(self, value):
+        """Clamps the angle between the min and max range set by constants."""
+        return max(
+            self.continuum_servo_middle - self.continuum_servo_half_range,
+            min(
+                self.continuum_servo_middle + self.continuum_servo_half_range,
+                value
+            )
+        )
 
 def main(args=None):
     """The main function initializes the ROS 2 node and starts the RCETIRobotController.
