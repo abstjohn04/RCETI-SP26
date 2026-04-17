@@ -130,7 +130,7 @@ class RCETIRobotController(Node):
         self.servo1.set_pulse_width_range(500, 2000)
 
         # CONTINUUM SERVO BOUND CONSTANTS
-        self.continuum_servo_range = 20
+        self.continuum_servo_half_range = 20
         self.continuum_servo_middle = 90
 
         # May need to adjust 
@@ -226,10 +226,10 @@ class RCETIRobotController(Node):
             # new_continuum_3_pitch_angle = self.clamp_angle(((continuum_angle_3 + 0.475) / 1.205) * 120)
             # new_continuum_4_pitch_angle = self.clamp_angle(((continuum_angle_4 + 0.475) / 1.205) * 120)
 
-            servo1_angle = self.clamp_continuum_angle((continuum_angle_1 * 180) + 90)
-            servo2_angle = self.clamp_continuum_angle((continuum_angle_2 * 180) + 90)
-            servo3_angle = self.clamp_continuum_angle((continuum_angle_3 * 180) + 90)
-            servo4_angle = self.clamp_continuum_angle((continuum_angle_4 * 180) + 90)
+            servo1_angle = self.clamp_continuum_angle(self.convert_continuum_angle(continuum_angle_1))
+            servo2_angle = self.clamp_continuum_angle(self.convert_continuum_angle(continuum_angle_2))
+            servo3_angle = self.clamp_continuum_angle(self.convert_continuum_angle(continuum_angle_3))
+            servo4_angle = self.clamp_continuum_angle(self.convert_continuum_angle(continuum_angle_4))
 
             if (self.servo1.angle != new_pitch_angle): 
                 self.get_logger().info(f"Adjusting pitch to {new_pitch_angle}")
@@ -281,6 +281,9 @@ class RCETIRobotController(Node):
     def clamp_angle(self, value):
         """Clamps the calculated angle between 0 and 120 degrees."""
         return max(0, min(120, int(value)))
+
+    def convert_continuum_angle(self, value):
+        return (value * self.continuum_servo_half_range * 2) + 90
 
     def clamp_continuum_angle(self, value):
         """Clamps the angle between the min and max range set by constants."""
