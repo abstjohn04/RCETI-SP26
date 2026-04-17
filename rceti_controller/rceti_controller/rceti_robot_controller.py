@@ -121,10 +121,10 @@ class RCETIRobotController(Node):
 
         # Initialize servo motors
         self.servo1 = kit.servo[0]       # tilts continuum base
-        self.servo2 = kit.servo[1]       # pulls continuum (N)
+        self.servo2 = kit.servo[4]       # pulls continuum (N)
         self.servo3 = kit.servo[2]       # pulls continuum (S)
         self.servo4 = kit.servo[3]       # pulls continuum (W)
-        self.servo5 = kit.servo[4]       # pulls continuum (E)
+        self.servo5 = kit.servo[1]       # pulls continuum (E)
 
         self.servo1.actuation_range = 200
         self.servo1.set_pulse_width_range(500, 2000)
@@ -283,6 +283,10 @@ class RCETIRobotController(Node):
         return max(0, min(120, int(value)))
 
     def convert_continuum_angle(self, value):
+        """
+        Converts value from joint state (-0.5, 0.5) to servo angle
+        (continuum_servo_middle +- continuum_servo_half_angle).
+        """
         return (value * self.continuum_servo_half_range * 2) + 90
 
     def clamp_continuum_angle(self, value):
