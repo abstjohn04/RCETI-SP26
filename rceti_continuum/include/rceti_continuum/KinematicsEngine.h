@@ -34,7 +34,7 @@ class KinematicsEngine {
 		std::vector<double> arrayOfPhi;
 
         /** @brief The physical length of each segment in meters. */
-		std::vector<double> segmentLength;
+		std::vector<double> segment_lengths_;
 
         /** @brief The number of discrete rigid "vertebrae" used to approximate the continuous curve. */
 		std::vector<int> noOfDisks;
@@ -49,23 +49,20 @@ class KinematicsEngine {
 		std::vector<double> segPhi;
         
     public:
-        /** @brief Total number of independent bending sections on the robot. */
-        int numberOfSegments;
-
         /**
          * @brief Constructor. Allocates memory for the specified number of robot segments.
-         * @param num_segments The total number of segments this engine will calculate.
+         * @param number_of_segments The total number of segments this engine will calculate.
          */
-        KinematicsEngine(int num_segments);
+        KinematicsEngine(int number_of_segments);
 
         /**
          * @brief Initializes the physical properties of a specific continuum segment.
          * @param segID The index of the segment.
-         * @param length The length of the segment when straight.
-         * @param n_disks The number of discrete rigid rings to calculate along the arc.
-         * @param radius The radius of the segment.
+         * @param segment_length The length of the segment when straight.
+         * @param segment_disks The number of discrete rigid rings to calculate along the arc.
+         * @param segment_radius The radius of the segment.
          */
-		void addSegment(int segID, double length, int n_disks, double radius);
+		void addSegment(int segID, double segment_length, int segment_disks, double segment_radius);
 
         /**
          * @brief Defines the starting origin point and orientation of a segment.
@@ -93,7 +90,7 @@ class KinematicsEngine {
         double getPhi(int segID) { return segPhi[segID]; }
 
         /** @brief Returns the length of the specified segment. */
-        double getSegmentLength(int segID) { return segmentLength[segID]; }
+        double getSegmentLength(int segID) { return segment_lengths_[segID]; }
 
         /** @brief Returns the base pose (origin) of the specified segment. */
         tf2::Transform getBasePose(int segID) { return basePose[segID]; }
@@ -112,10 +109,10 @@ class KinematicsEngine {
         /**
          * @brief Calculates and returns the specific 3D position (x, y, z) of a single disk along the curve.
          * @param segID The index of the segment.
-         * @param i The index of the specific disk.
+         * @param diskID The index of the specific disk.
          * @return A tf2::Vector3 representing the local coordinates of the disk.
          */
-		tf2::Vector3 getDiskPosition(int segID, int i);
+		tf2::Vector3 getDiskPosition(int segID, int diskID);
 };
 
 #endif

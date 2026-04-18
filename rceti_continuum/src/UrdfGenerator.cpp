@@ -1,84 +1,51 @@
 #include "rceti_continuum/UrdfGenerator.h"
 
-UrdfGenerator::UrdfGenerator() {}
+UrdfGenerator::UrdfGenerator() {
+    robotURDFfile.open(ament_index_cpp::get_package_share_directory("rceti_continuum") + "/urdf/generated_robot.urdf");
 
-void UrdfGenerator::createURDF(int segID, double segLength, int n_disks, double radius, int totalSegments)
-{
-    // Define a scaling factor
-    double scale_factor = .1; // Example: Scale down by 50%
-
-    // Get the path to the URDF file
-    std::string path = ament_index_cpp::get_package_share_directory("rceti_continuum");
-    path = path + "/urdf/continuum_macro.xacro";
-	
-
-    if (segID == 0)
-    { // If the first time to create the robot, delete the previous file
-        remove(path.c_str());
-
-        robotURDFfile.open(path.c_str(), std::fstream::app);
-        robotURDFfile << "<?xml version=\"1.1\"?>" << std::endl;
-        robotURDFfile << "<robot xmlns:xacro=\"http://ros.org/wiki/xacro\" name=\"rceti_continuum\">" << std::endl;
-		robotURDFfile << "<xacro:macro name=\"rceti_continuum\">" << std::endl;
-        robotURDFfile << "<link name=\"continuum_base_link\"/>" << std::endl;
-		robotURDFfile << "<origin xyz=\"1.0 2.0 0.5\" rpy=\"0 0 0\"/>" << std::endl; // Set the position and orientation
-        robotURDFfile << "<material name=\"white\">" << std::endl;
-        robotURDFfile << "<color rgba=\"0 1 0 1\"/>" << std::endl;
-        robotURDFfile << "</material>" << std::endl;
-    }
-    else
-    {
-        robotURDFfile.open(path.c_str(), std::fstream::app);
+    if (!robotURDFfile.is_open()) {
+        std::cerr << "CRITICAL ERROR: Failed to open URDF file for writing" << std::endl;
+        return;
     }
 
-    robotURDFfile << std::endl;
-    for (int disk = 0; disk < n_disks; disk++)
-    {
-        // Scale the position of the disk
-        double scaled_position = scale_factor * (disk / (n_disks - 1.0)) * segLength;
+    robotURDFfile << "<?xml version=\"1.0\"?>\n";
+    robotURDFfile << "<robot name=\"rceti_continuum\">\n\n";
+    
+    robotURDFfile << "  \n";
+    robotURDFfile << "  <link name=\"continuum_base_link\">\n";
+    robotURDFfile << "    <visual>\n";
+    robotURDFfile << "      <geometry>\n";
+    robotURDFfile << "        <cylinder length=\"0.01\" radius=\"0.005\"/>\n";
+    robotURDFfile << "      </geometry>\n";
+    robotURDFfile << "    </visual>\n";
+    robotURDFfile << "  </link>\n\n";
+}
 
-        robotURDFfile << "<link name=\"S" << segID << "L" << disk << "\">" << std::endl;
-        robotURDFfile << "<visual>" << std::endl;
-        robotURDFfile << "<geometry>" << std::endl;
+void UrdfGenerator::createURDF(int segID, double segment_length, int segment_disks, double segment_radius, int number_of_segments) {
+    if (!robotURDFfile.is_open()) return;
 
-        if (segID == 0 && disk == 0)
-        {
-            // Scale the size of the base box
-            robotURDFfile << "<box size=\"" << scale_factor * 1 << " " << scale_factor * 1 << " " << scale_factor * 0.05 << "\"/>" << std::endl;
+    double disk_length = segment_length / segment_disks;
 
-        }
-        else
-        {
-            // Scale the size of the cylinder
-            robotURDFfile << "<cylinder length=\"" << scale_factor * 0.1 << "\" radius=\"" << scale_factor * radius << "\"/>" << std::endl;
-        }
+    for (int i = 0; i < segment_disks; i++) {
+        
+        robotURDFfile << "  <link name=\"S" << segID << "L" << i << "\">\n";
+        robotURDFfile << "    <visual>\n";
+        robotURDFfile << "      <geometry>\n";
+        robotURDFfile << "        <cylinder length=\"" << disk_length << "\" radius=\"" << segment_radius << "\"/>\n";
+        robotURDFfile << "      </geometry>\n";
+        robotURDFfile << "      <origin rpy=\"0 0 0\" xyz=\"0 0 0\"/>\n";
+        robotURDFfile << "    </visual>\n";
+        robotURDFfile << "  </link>\n\n";
 
-        // Scale the position of the origin
-        robotURDFfile << "<origin rpy=\"0 0 0\" xyz=\"0 0 " << scaled_position << "\"/>" << std::endl;
-        robotURDFfile << "</geometry>" << std::endl;
-
-        if (segID == 0 && disk == 0)
-        {
-            robotURDFfile << "<material name=\"white\"/>" << std::endl;
-        }
-
-        robotURDFfile << "</visual>" << std::endl;
-        robotURDFfile << "</link>" << std::endl;
-        robotURDFfile << std::endl;
-
-        // Scale the joint
-        robotURDFfile << "<joint name=\"S" << segID << "J" << disk << "\" type=\"floating\">" << std::endl;
-        robotURDFfile << "<parent link=\"continuum_base_link\"/>" << std::endl;
-        robotURDFfile << "<child link=\"S" << segID << "L" << disk << "\"/>" << std::endl;
-        robotURDFfile << "</joint>" << std::endl;
-        robotURDFfile << std::endl;
+        robotURDFfile << "  <joint name=\"joint_S" << segID << "L" << i << "\" type=\"floating\">\n";
+        robotURDFfile << "    <parent link=\"continuum_base_link\"/>\n";
+        robotURDFfile << "    <child link=\"S" << segID << "L" << i << "\"/>\n";
+        robotURDFfile << "  </joint>\n\n";
     }
 
-    if (segID == (totalSegments - 1))
-    {
-		robotURDFfile << "</xacro:macro>" << std::endl;
-        robotURDFfile << "</robot>" << std::endl; // Add closing tag
+    if (segID == number_of_segments - 1) {
+        robotURDFfile << "</robot>\n";
+        robotURDFfile.close();
+        std::cout << "[UrdfGenerator] Successfully wrote dynamic URDF file!" << std::endl;
     }
-
-    robotURDFfile.close();
 }

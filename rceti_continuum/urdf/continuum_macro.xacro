@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+    
+    <xacro:property name="yaml_file" value="$(find rceti_deployment)/config/robot_params.yaml" />
+    <xacro:property name="props" value="${xacro.load_yaml(yaml_file)}" />
+    
+    <xacro:property name="num_segments" value="${props['core_node']['ros__parameters']['number_of_segments']}" />
+    <xacro:property name="segment_disks" value="${props['core_node']['ros__parameters']['segment_disks']}" />
+    <xacro:property name="segment_length" value="${props['core_node']['ros__parameters']['segment_length']}" />
+    <xacro:property name="segment_radius" value="${props['core_node']['ros__parameters']['segment_radius']}" />
+
+    <xacro:macro name="create_segment" params="seg_id segment_disks length radius">
+        <xacro:property name="disk_len" value="${length / segment_disks}" />
+        <xacro:macro name="disk_loop" params="disk_id">
+            <xacro:if value="${disk_id &lt; segment_disks}">
+                <link name="S${seg_id}L${disk_id}">
+                    <visual>
+                        <geometry>
+                            <cylinder length="${disk_len}" radius="${radius}"/>
+                        </geometry>
+                        <origin rpy="0 0 0" xyz="0 0 0"/>
+                    </visual>
+                </link>
+                <joint name="joint_S${seg_id}L${disk_id}" type="floating">
+                    <parent link="continuum_base_link"/> <child link="S${seg_id}L${disk_id}"/>
+                </joint>
+                <xacro:disk_loop disk_id="${disk_id + 1}"/>
+            </xacro:if>
+        </xacro:macro>
+        <xacro:disk_loop disk_id="0"/>
+    </xacro:macro>
+
+    <xacro:macro name="segment_loop" params="seg_id">
+        <xacro:if value="${seg_id &lt; num_segments}">
+            <xacro:create_segment seg_id="${seg_id}" segment_disks="${segment_disks}" length="${segment_length}" radius="${segment_radius}"/>
+            <xacro:segment_loop seg_id="${seg_id + 1}"/>
+        </xacro:if>
+    </xacro:macro>
+
+    <xacro:segment_loop seg_id="0"/>
+
+</robot>

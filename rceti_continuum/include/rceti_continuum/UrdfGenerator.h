@@ -3,6 +3,7 @@
 #define RCETI_CONTINUUM_URDF_GENERATOR_H_
 
 #include <fstream>
+#include <iostream>
 #include <string>
 #include <ament_index_cpp/get_package_share_directory.hpp>
 
@@ -32,12 +33,12 @@ class UrdfGenerator {
          * every discrete disk in the segment. If the current segment is the final one, 
          * it also handles writing the closing `</robot>` XML tags to finish the file.
          * @param segID The index of the segment being generated.
-         * @param length The physical length of the segment.
-         * @param n_disks The number of discrete rigid disks that make up this segment.
-         * @param radius The radius of the individual disks.
-         * @param totalSegments The total number of segments in the robot (used to determine when to close the XML file).
+         * @param segment_length The physical length of the segment.
+         * @param segment_disks The number of discrete rigid disks that make up this segment.
+         * @param segment_radius The radius of the individual disks.
+         * @param number_of_segments The total number of segments in the robot (used to determine when to close the XML file).
          */
-        void createURDF(int segID, double length, int n_disks, double radius, int totalSegments);
+        void createURDF(int segID, double segment_length, int segment_disks, double segment_radius, int number_of_segments);
 };
 
 #endif

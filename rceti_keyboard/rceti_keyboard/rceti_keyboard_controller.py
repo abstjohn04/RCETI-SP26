@@ -12,9 +12,10 @@ from select import select
 from sensor_msgs.msg import JointState
 import rclpy
 from rclpy.node import Node
+from std_msgs.msg import Bool
 
 LINEAR_STEP = 0.01
-FIVE_DEGREES_FUNCTIONAL = 0.050208333
+DEGREE_STEP = 0.00174
 class Press:
     UP_ARROW = '\x1b[A'
     DOWN_ARROW = '\x1b[B'
@@ -51,7 +52,7 @@ class RcetiKeyboardController(Node):
 
         self.keyboard_timer = self.create_timer(0.01, self.keyboard_callback)
         self.joint_state_timer = self.create_timer(0.1, self.publish_joint_states)
-        
+
     def _detectKey(self, timeout):
         """Detects a key press from the keyboard with a timeout.
 
@@ -99,22 +100,22 @@ class RcetiKeyboardController(Node):
             case 'w': self.z_position = self._update_joint(self.z_position - LINEAR_STEP, self.MIN_Z_POSITION, self.MAX_Z_POSITION, "Z Position")
             case 's': self.z_position = self._update_joint(self.z_position + LINEAR_STEP, self.MIN_Z_POSITION, self.MAX_Z_POSITION, "Z Position")
 
-            case 'p': self.pitch_angle = self._update_joint(self.pitch_angle - FIVE_DEGREES_FUNCTIONAL, self.MIN_PITCH_ANGLE, self.MAX_PITCH_ANGLE, "Pitch Angle")
-            case 'l': self.pitch_angle = self._update_joint(self.pitch_angle + FIVE_DEGREES_FUNCTIONAL, self.MIN_PITCH_ANGLE, self.MAX_PITCH_ANGLE, "Pitch Angle")
+            case 'p': self.pitch_angle = self._update_joint(self.pitch_angle - DEGREE_STEP, self.MIN_PITCH_ANGLE, self.MAX_PITCH_ANGLE, "Pitch Angle")
+            case 'l': self.pitch_angle = self._update_joint(self.pitch_angle + DEGREE_STEP, self.MIN_PITCH_ANGLE, self.MAX_PITCH_ANGLE, "Pitch Angle")
             
             case Press.UP_ARROW: 
-                self.continuum_motor_1_angle = self._update_joint(self.continuum_motor_1_angle + FIVE_DEGREES_FUNCTIONAL, self.MIN_CONTINUUM_ANGLE, self.MAX_CONTINUUM_ANGLE, "Continuum 1")
-                self.continuum_motor_2_angle = self._update_joint(self.continuum_motor_2_angle - FIVE_DEGREES_FUNCTIONAL, self.MIN_CONTINUUM_ANGLE, self.MAX_CONTINUUM_ANGLE, "Continuum 2")
+                self.continuum_motor_1_angle = self._update_joint(self.continuum_motor_1_angle + DEGREE_STEP, self.MIN_CONTINUUM_ANGLE, self.MAX_CONTINUUM_ANGLE, "Continuum 1")
+                self.continuum_motor_2_angle = self._update_joint(self.continuum_motor_2_angle - DEGREE_STEP, self.MIN_CONTINUUM_ANGLE, self.MAX_CONTINUUM_ANGLE, "Continuum 2")
             case Press.DOWN_ARROW: 
-                self.continuum_motor_1_angle = self._update_joint(self.continuum_motor_1_angle - FIVE_DEGREES_FUNCTIONAL, self.MIN_CONTINUUM_ANGLE, self.MAX_CONTINUUM_ANGLE, "Continuum 1")
-                self.continuum_motor_2_angle = self._update_joint(self.continuum_motor_2_angle + FIVE_DEGREES_FUNCTIONAL, self.MIN_CONTINUUM_ANGLE, self.MAX_CONTINUUM_ANGLE, "Continuum 2")
+                self.continuum_motor_1_angle = self._update_joint(self.continuum_motor_1_angle - DEGREE_STEP, self.MIN_CONTINUUM_ANGLE, self.MAX_CONTINUUM_ANGLE, "Continuum 1")
+                self.continuum_motor_2_angle = self._update_joint(self.continuum_motor_2_angle + DEGREE_STEP, self.MIN_CONTINUUM_ANGLE, self.MAX_CONTINUUM_ANGLE, "Continuum 2")
 
             case Press.RIGHT_ARROW: 
-                self.continuum_motor_3_angle = self._update_joint(self.continuum_motor_3_angle + FIVE_DEGREES_FUNCTIONAL, self.MIN_CONTINUUM_ANGLE, self.MAX_CONTINUUM_ANGLE, "Continuum 3")
-                self.continuum_motor_4_angle = self._update_joint(self.continuum_motor_4_angle - FIVE_DEGREES_FUNCTIONAL, self.MIN_CONTINUUM_ANGLE, self.MAX_CONTINUUM_ANGLE, "Continuum 4")
+                self.continuum_motor_3_angle = self._update_joint(self.continuum_motor_3_angle + DEGREE_STEP, self.MIN_CONTINUUM_ANGLE, self.MAX_CONTINUUM_ANGLE, "Continuum 3")
+                self.continuum_motor_4_angle = self._update_joint(self.continuum_motor_4_angle - DEGREE_STEP, self.MIN_CONTINUUM_ANGLE, self.MAX_CONTINUUM_ANGLE, "Continuum 4")
             case Press.LEFT_ARROW: 
-                self.continuum_motor_3_angle = self._update_joint(self.continuum_motor_3_angle - FIVE_DEGREES_FUNCTIONAL, self.MIN_CONTINUUM_ANGLE, self.MAX_CONTINUUM_ANGLE, "Continuum 3")
-                self.continuum_motor_4_angle = self._update_joint(self.continuum_motor_4_angle + FIVE_DEGREES_FUNCTIONAL, self.MIN_CONTINUUM_ANGLE, self.MAX_CONTINUUM_ANGLE, "Continuum 4")
+                self.continuum_motor_3_angle = self._update_joint(self.continuum_motor_3_angle - DEGREE_STEP, self.MIN_CONTINUUM_ANGLE, self.MAX_CONTINUUM_ANGLE, "Continuum 3")
+                self.continuum_motor_4_angle = self._update_joint(self.continuum_motor_4_angle + DEGREE_STEP, self.MIN_CONTINUUM_ANGLE, self.MAX_CONTINUUM_ANGLE, "Continuum 4")
 
             case Press.CTRL_C:
                 rclpy.shutdown()

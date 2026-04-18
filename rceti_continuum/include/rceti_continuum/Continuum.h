@@ -26,6 +26,7 @@ Removed all keyboard inputs. Directly reads in input from keyboard through joint
 #include <ament_index_cpp/get_package_share_directory.hpp>
 #include "visualization_msgs/msg/marker_array.hpp"
 #include "sensor_msgs/msg/joint_state.hpp"
+#include "geometry_msgs/msg/point.hpp"
 
 #include "rceti_continuum/KinematicsEngine.h"
 #include "rceti_continuum/UrdfGenerator.h"
@@ -45,6 +46,18 @@ constexpr int NORMAL = 0;
  */
 class Continuum {
 	private:
+		/** @brief The total number of independent bending segments making up the tube. */
+		int number_of_segments_ = 5;
+
+		/** @brief The length of each segment. */
+		double segment_length_ = 0.05;
+
+		/** @brief The number of disks in each segment. */
+		int segment_disks_ = 10;
+
+		/** @brief The radius of disks in each segment. */
+		double segment_radius_ = 0.004;
+
 		/** @brief Broadcasts the calculated positions of each rigid disk to the ROS 2 TF tree. */
 		std::shared_ptr<tf2_ros::TransformBroadcaster> segTFBroadcaster;
 
@@ -71,15 +84,15 @@ class Continuum {
 		 */
 		void jointStateCallback(const sensor_msgs::msg::JointState::SharedPtr msg);
 
+		/** @brief Subscribes to the */
+		rclcpp::Subscription<geometry_msgs::msg::Point>::SharedPtr target_sub_;
+		
 	public:
 		/** @brief Pointer to the engine handling all constant curvature kinematics math. */
 		KinematicsEngine* math_engine_;
 
 		/** @brief Pointer to the engine responsible for generating the dynamic URDF file. */
         UrdfGenerator* urdf_generator_;
-
-		/** @brief The total number of independent bending segments making up the robot. */
-		int numberOfSegments;
 
 		/**
 		 * @brief Constructor. Initializes ROS 2 interfaces, parameters, and internal engines.
@@ -91,32 +104,6 @@ class Continuum {
 		 * @brief Destructor. Safely cleans up the dynamically allocated math and URDF engines.
 		 */
 		~Continuum();
-
-		/**
-		 * @brief Registers a new segment with both the Kinematics and URDF engines.
-		 * @param segID The unique identifier for this segment.
-		 * @param length The length of the segment.
-		 * @param n_disks The number of discrete rigid disks that make up the segment.
-		 * @param radius The radius of the segment/disks.
-		 */
-		void addSegment(int segID, double length, int n_disks, double radius);
-
-		/**
-		 * @brief Sets the 3D starting position and orientation for a specific segment.
-		 * 
-		 * @param segID The segment ID to update.
-		 * @param basePos A 3D vector representing the origin (x, y, z).
-		 * @param baseRot A Quaternion representing the orientation.
-		 */
-        void setSegmentBasePose(int segID, tf2::Vector3 basePos, tf2::Quaternion baseRot);
-
-		/**
-		 * @brief Updates the mathematical curve of a specific segment.
-		 * @param segID The segment ID to update.
-		 * @param kappa The curvature value (how tightly it is bending).
-		 * @param phi The direction angle of the bend (in radians).
-		 */
-        void setSegmentShape(int segID, double kappa, double phi);
 		
 		/**
 		 * @brief The main execution loop of the node.

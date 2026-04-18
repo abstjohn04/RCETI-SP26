@@ -1,35 +1,41 @@
 <?xml version="1.0"?>
-<!-- This is the main launch file used to launch all nodes on the "computer" side of the RCETI robot project-->
 <launch>
+    <arg name="use_ai" default="false" description="Set to true to disable keyboard and enable Machine Learning node." />
 
-    <!-- Launches rceti_continuum core_node -->
-    <node pkg="rceti_continuum" exec="core_node" output="screen"
-        launch-prefix="gnome-terminal -- bash -c 'echo Starting rceti_continuum node... Use WASD to control; ros2 run rceti_continuum core_node'">
+    <node pkg="rceti_continuum" exec="core_node" name="core_node" output="screen">
         <param name="use_sim_time" value="true" />
+        <param from="$(find-pkg-share rceti_deployment)/config/robot_params.yaml" />
     </node>
-
-    <!-- Includes load_rceti_deployment.launch.xml, this will load in the URDF-->
     <include file="$(find-pkg-share rceti_deployment)/launch/load_rceti_deployment.launch.xml" />
 
-    <!-- Input Arguments -->
     <arg name="rviz_config" default="$(find-pkg-share rceti_deployment)/config/visualize_description.rviz" description="[String] Path to RViz config file." />
 
-    <!-- Publish the robot state (tf transforms) -->
     <node pkg="robot_state_publisher" exec="robot_state_publisher" output="screen">
         <param name="robot_description" value="$(var robot_description)" />
         <param name="use_sim_time" value="true" />
     </node>
 
-    <!-- User Interaction -->
     <node pkg="rviz2" exec="rviz2" args="-d $(var rviz_config)" output="screen">
         <param name="robot_description" value="$(var robot_description)" />
         <param name="use_sim_time" value="true" />
     </node>
 
-    <!-- Launches rceti_keyboard node -->
+    <arg name="use_ai" default="false" description="Set to true to launch the full AI Vision stack" />
+
     <node pkg="rceti_keyboard" exec="rceti_keyboard" output="screen" 
-            launch-prefix="gnome-terminal -- bash -c 'echo Starting rceti_keyboard node... Use WASD to control; ros2 run rceti_keyboard rceti_keyboard'">
+          unless="$(var use_ai)"
+          launch-prefix="gnome-terminal -- bash -c 'echo Starting rceti_keyboard node...; ros2 run rceti_keyboard rceti_keyboard'">
         <param name="use_sim_time" value="true" />
+    </node>
+
+    <node pkg="rceti_vision" exec="mock_camera" output="screen"
+          if="$(var use_ai)">
+        <param name="use_sim_time" value="false" />
+    </node>
+
+    <node pkg="rceti_vision" exec="vision_bridge" output="screen"
+          if="$(var use_ai)">
+        <param name="use_sim_time" value="false" />
     </node>
 
 </launch>
