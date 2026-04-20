@@ -43,7 +43,12 @@ class RcetiKeyboardController(Node):
         self.x_position = self.MIN_X_POSITION
         self.z_position = self.MIN_Z_POSITION
         self.pitch_angle =  self.MAX_PITCH_ANGLE
-        self.continuum_motor_1_angle = self.continuum_motor_2_angle = self.continuum_motor_3_angle = self.continuum_motor_4_angle = 0.0
+        
+        # UPDATED TO SET SERVOS TO PROPER ANGLE BASED ON NEW 4-SERVO CONFIGURATION
+        self.continuum_motor_1_angle = 0.0
+        self.continuum_motor_2_angle = 0.0
+        self.continuum_motor_3_angle = 0.0
+        self.continuum_motor_4_angle = 0.0
 
         self.original_settings = termios.tcgetattr(sys.stdin)
 
