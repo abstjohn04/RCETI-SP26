@@ -34,7 +34,7 @@ The "development" branch contains the latest code. It has not been tested on the
 
 **rceti_keyboard**: A node allowing for manual control of the four independend continuum tendons via keyboard inputs
 
-**rceti_deployment**: The launch files that tie the simulation, hardware, and math nodes together.
+**rceti_deployment**: The launch files that tie the simulation, hardware, and math nodes together. Contains robot parameters in config/robot_params.yaml
 
 **rceti_vision**: The input node for the machine learning algorithms.
 
@@ -83,7 +83,7 @@ To manually move the robot, the rceti_keyboard node must be launched. This will 
 To adjust the position of the servo mount, use A and D to move left and right, and W and S to move up and down.  
 Use L and P to adjust the angle of the servo mount.
 
-To move the tube, use the left and right arrow keys to adjust the X coordinate (yaw) and the up and down arrow keys to adjust the Y coordinate (pitch).
+To move the tube, use the left and right arrow keys to adjust the Y coordinate (pitch) and the up and down arrow keys to adjust the X coordinate (yaw).
 
 ## License & Acknowledgements
 
