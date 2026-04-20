@@ -71,4 +71,4 @@ To close the application, navigate to the System Log terminal window and press "
 
 See [NETWORK.md](NETWORK.md) for instructions on how to access the Raspberry Pi.  
 
-See the "Usage" section in [README.md](NETWORK.md) on how to use the system.
+See the "Usage" section in [README.md](../README.md) on how to use the system.

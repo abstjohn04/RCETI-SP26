@@ -40,11 +40,11 @@ The "development" branch contains the latest code. It has not been tested on the
 
 ## Installation
 
-See [INSTALL.md](INSTALL.md) to install ROS 2 and setup the environment on the Ubuntu host machine.
+See [INSTALL.md](docs/INSTALL.md) to install ROS 2 and setup the environment on the Ubuntu host machine.
 
 ## Network Setup
 
-See [NETWORK.md](NETWORK.md) to access the Raspberry Pi.
+See [NETWORK.md](docs/NETWORK.md) to access the Raspberry Pi.
 
 ## Usage
 
