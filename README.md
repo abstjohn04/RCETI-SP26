@@ -8,6 +8,14 @@ R.C.E.T.I is a ROS 2 autonomous intubation device. The system utilizes a multi a
 
 This project assumes the user is controlling the robot remotely via a Raspberry Pi and is using Ubuntu 22.04 LTS.
 
+### Github Branches
+
+**RCETI is currently divided into two branches.**  
+
+The "main" branch contains the most recent stable code that has been tested on the physical robot. It does not contain the machine learning algorithms or the updated simulation environment.  
+
+The "development" branch contains the latest code. It has not been tested on the physical robot. It contains the machine learning node and a more polished simulation environment and math engine.
+
 ### Requirements
 
 * Ubuntu 22.04
@@ -28,6 +36,8 @@ This project assumes the user is controlling the robot remotely via a Raspberry 
 
 **rceti_deployment**: The launch files that tie the simulation, hardware, and math nodes together.
 
+**rceti_vision**: The input node for the machine learning algorithms.
+
 ## Installation
 
 See [INSTALL.md](INSTALL.md) to install ROS 2 and setup the environment on the Ubuntu host machine.
@@ -35,6 +45,28 @@ See [INSTALL.md](INSTALL.md) to install ROS 2 and setup the environment on the U
 ## Network Setup
 
 See [NETWORK.md](NETWORK.md) to access the Raspberry Pi.
+
+## Usage
+
+Before launching any ROS node, the user must first source the environment and build.
+
+`colcon build --cmake-args -DCMAKE_EXPORT_COMPILE_COMMANDS=ON`
+
+`source install/setup.bash`
+
+Afterwards, the full network can be launched.
+
+### Commands
+
+`colcon build --packages-select package_name` - Builds a specific node
+
+`ros2 launch rceti_deployment rceti_deployment.launch.xml` - Runs the whole robot system with machine learning disabled. Manual keyboard controls enabled.
+
+`ros2 launch rceti_deployment rceti_deployment.launch.xml use_ai:=true` - Runs the whole robot system with machine learning enabled. Launches mock camera and vision bridge. Manual keyboard controls disabled. UNAVAILABLE IF USING MAIN BRANCH.
+
+`ros2 launch package_name package_launch_file` - Launches a package's launch file (see names of launch files in codebase).
+
+`ros2 run package_name package_run_file` - Runs a specific eligible file in a node (see names of files in codebase).
 
 ## License & Acknowledgements
 
