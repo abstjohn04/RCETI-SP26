@@ -12,7 +12,7 @@ This project assumes the user is controlling the robot remotely via a Raspberry 
 
 **RCETI is currently divided into two branches.**  
 
-The "main" branch contains the most recent stable code that has been tested on the physical robot. It does not contain the machine learning algorithms or the updated simulation environment.  
+The "main" branch contains the most recent stable code that has been tested on the physical robot. It contains updated and more precise servo movements. It does not contain the machine learning algorithms or the updated simulation environment.  
 
 The "development" branch contains the latest code. It has not been tested on the physical robot. It contains the machine learning node and a more polished simulation environment and math engine.
 
@@ -67,6 +67,23 @@ Afterwards, the full network can be launched.
 `ros2 launch package_name package_launch_file` - Launches a package's launch file (see names of launch files in codebase).
 
 `ros2 run package_name package_run_file` - Runs a specific eligible file in a node (see names of files in codebase).
+
+### RViz simulation tool
+
+This tool launches with the rceti_continuum node. It fetches the modeled meshes from rceti_support and simulates them according to the urdf files (See invididual nodes' .urdf and .xacro files for more details on what is launched and created).  
+
+To disable the Transform frames (all the green, red and blue lines) in the simulation, uncheck the "TF" button in the left settings screen.
+
+### Moving the robot
+
+If you are using the machine learning node with the mock camera, it will automatically move for you!  
+
+To manually move the robot, the rceti_keyboard node must be launched. This will launch a separate terminal which outputs coordinates.  
+
+To adjust the position of the servo mount, use A and D to move left and right, and W and S to move up and down.  
+Use L and P to adjust the angle of the servo mount.
+
+To move the tube, use the left and right arrow keys to adjust the X coordinate (yaw) and the up and down arrow keys to adjust the Y coordinate (pitch).
 
 ## License & Acknowledgements
 
