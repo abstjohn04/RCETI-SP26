@@ -39,29 +39,36 @@ Next we will setup the ROS environment. Enter the following commands in your ter
 
 ## Download & Build the RCETI Code
 
-Now that the robotics software is installed, we will download the RCETI specific code. Once again, follow the steps and enter the commands in your terminal.
+Now that the robotics software is installed, we will download the RCETI code and the Machine Learning code. Once again, follow the steps and enter the commands in your terminal.
 
 1. Install git:  
     `sudo apt update && sudo apt install git -y`
-2. Clone the repo to rceti/src (make sure to include the dot at the end of the command!):  
+2. Clone the RCETI repo to rceti/src (make sure to include the dot at the end of the command!):  
     `cd ~/rceti/src && git clone https://github.com/abstjohn04/RCETI-SP26 .`
-3. Enter the rceti_ws/ directory and install dependencies:  
+3. Clone the Machine Learning repo to a new folder called ML (or any folder you wish):
+    `cd && mkdir ML && git clone https://github.com/github4bme/EndotrachealTubeModel .`
+    *(Note: The machine learning repo is massive. It may take up to a hour to fully download.)*
+4. If you wish to use the mock machine learning camera, you must change the file path for "video_path" in rceti/src/rceti_vision/rceti_vision/mock_camera.py to match the location of your cloned machine learning repo.
+5. Enter the rceti_ws/ directory and install dependencies:  
     * `cd ~/rceti_ws`
     * `rosdep update`
     * `rosdep install -i --from-path src --rosdistro humble -y`
     * `colcon build`
-4. Restart the Ubuntu host machine (CRUCIAL!)
+6. Restart the Ubuntu host machine (CRUCIAL!)
 
-## Running the Robot System
+## Validating the installation
 
-To Start the RCETI robot, enter the following command:  
+To test the RCETI robot, enter the following command:  
     `cd ~/rceti_ws/ && source install/setup.bash && ros2 launch rceti_deployment rceti_deployment.launch.xml`
 
-If the installation and launch was successful, four things will open on your screen:
+If the installation and launch was successful, three things will open on your screen:
 
 1. **The 3D Simulation (RViz)**: The 3D live model of the robot.
-2. **The Control Terminal**: A new terminal will pop up allowing you to use your WASD and Arrow keys to control the physical robot
-3. **The Data Terminal**: A window displaying the real time math calculations and the coordinates.
-4. **The System Log**: The original terminal where you typed the command will begin streaming the system health status.
+2. **The Data Terminal**: A window displaying the real time math calculations and the coordinates.
+3. **The System Log**: The original terminal where you typed the command will begin streaming the system health status.
 
-To close the application, navigate to the System Log terminal window and press "Ctrcl + C". Close the other windows manually if needed
+To close the application, navigate to the System Log terminal window and press "Ctrcl + C". Close the other windows manually if needed.  
+
+See [NETWORK.md](NETWORK.md) for instructions on how to access the Raspberry Pi.  
+
+See the "Usage" section in [README.md](NETWORK.md) on how to use the system.
