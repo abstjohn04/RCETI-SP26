@@ -46,7 +46,7 @@ Now that the robotics software is installed, we will download the RCETI code and
 2. Clone the RCETI repo to rceti/src (make sure to include the dot at the end of the command!):  
     `cd ~/rceti/src && git clone https://github.com/abstjohn04/RCETI-SP26 .`
 3. Clone the Machine Learning repo to a new folder called ML (or any folder you wish):
-    `cd && mkdir ML && git clone https://github.com/github4bme/EndotrachealTubeModel .`
+    `cd && mkdir ML && && cd ML && git clone https://github.com/github4bme/EndotrachealTubeModel .`
     *(Note: The machine learning repo is massive. It may take up to a hour to fully download.)*
 4. If you wish to use the mock machine learning camera, you must change the file path for "video_path" in rceti/src/rceti_vision/rceti_vision/mock_camera.py to match the location of your cloned machine learning repo.
 5. Enter the rceti_ws/ directory and install dependencies:  
